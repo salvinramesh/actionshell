@@ -1,0 +1,65 @@
+/* Auth screens shared CSS */
+.auth-screen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--color-base-800);
+  overflow: hidden;
+}
+
+.auth-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.auth-bg-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08) 0%, transparent 60%);
+}
+
+.auth-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-base-750);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-xl), 0 0 60px rgba(0,212,255,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.auth-logo { text-align: center; }
+.auth-logo h1 { font-size: var(--text-2xl); font-weight: var(--weight-bold); color: var(--color-text-100); margin: 8px 0 4px; }
+.auth-logo p { font-size: var(--text-sm); color: var(--color-text-500); }
+
+.auth-steps { display: flex; gap: 8px; justify-content: center; }
+.auth-step-dot { width: 8px; height: 8px; border-radius: 4px; background: var(--color-base-500); transition: all 300ms; }
+.auth-step-dot.active { background: var(--color-accent-500); width: 20px; box-shadow: 0 0 8px var(--color-accent-glow); }
+
+.auth-footer-note { font-size: var(--text-xs); color: var(--color-text-600); text-align: center; line-height: 1.5; }
+
+.auth-divider { display: flex; align-items: center; gap: 12px; color: var(--color-text-700); font-size: var(--text-xs); }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border-subtle); }
+
+form { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.lock-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent-400), var(--color-slate-500));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: white;
+  margin: 0 auto;
+  box-shadow: 0 0 24px var(--color-accent-glow);
+}

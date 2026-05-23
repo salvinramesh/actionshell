@@ -1,0 +1,177 @@
+/* =====================================================
+   ActionShell Design Tokens
+   Enterprise Command Center — Dark-First Design System
+   ===================================================== */
+
+:root {
+  /* === Color Palette === */
+  /* Base / Background */
+  --color-base-900: #050810;
+  --color-base-850: #080C18;
+  --color-base-800: #0A0E1A;   /* Primary background */
+  --color-base-750: #0D1220;
+  --color-base-700: #111728;
+  --color-base-650: #151D30;
+  --color-base-600: #1A2238;
+  --color-base-550: #1E2A44;
+  --color-base-500: #243252;
+  --color-base-450: #2A3A60;
+  --color-base-400: #30426E;
+  --color-base-350: #364A7C;
+  --color-base-300: #4B619A;
+
+  /* Accent — Electric Cyan */
+  --color-accent-400: #00B8D9;
+  --color-accent-500: #00D4FF;  /* Primary accent */
+  --color-accent-600: #26DCFF;
+  --color-accent-glow: rgba(0, 212, 255, 0.15);
+  --color-accent-glow-strong: rgba(0, 212, 255, 0.3);
+
+  /* Slate Blue — Secondary accent */
+  --color-slate-400: #6B80C0;
+  --color-slate-500: #7C93D8;
+  --color-slate-600: #8DA6F0;
+
+  /* Success — Emerald */
+  --color-success-500: #10D98A;
+  --color-success-600: #22E89A;
+  --color-success-glow: rgba(16, 217, 138, 0.15);
+
+  /* Warning — Amber */
+  --color-warning-500: #F59E0B;
+  --color-warning-600: #FBBF24;
+  --color-warning-glow: rgba(245, 158, 11, 0.15);
+
+  /* Danger — Rose */
+  --color-danger-500: #F43F5E;
+  --color-danger-600: #FB7185;
+  --color-danger-glow: rgba(244, 63, 94, 0.15);
+
+  /* Text */
+  --color-text-100: #FFFFFF;
+  --color-text-200: #EEF0F6;
+  --color-text-300: #CDD6F4;
+  --color-text-400: #B0B8D8;
+  --color-text-500: #8891B8;
+  --color-text-600: #616A8C;
+  --color-text-700: #414966;
+  --color-text-800: #2B3250;
+
+  /* Borders */
+  --color-border-subtle: rgba(99, 120, 180, 0.12);
+  --color-border-default: rgba(99, 120, 180, 0.2);
+  --color-border-strong: rgba(99, 120, 180, 0.35);
+  --color-border-accent: rgba(0, 212, 255, 0.3);
+
+  /* Glass effects */
+  --glass-bg: rgba(13, 18, 32, 0.8);
+  --glass-bg-light: rgba(26, 34, 56, 0.6);
+  --glass-border: rgba(99, 120, 180, 0.2);
+
+  /* === Typography === */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+
+  --text-xs: 0.6875rem;    /* 11px */
+  --text-sm: 0.75rem;      /* 12px */
+  --text-base: 0.8125rem;  /* 13px */
+  --text-md: 0.875rem;     /* 14px */
+  --text-lg: 1rem;         /* 16px */
+  --text-xl: 1.125rem;     /* 18px */
+  --text-2xl: 1.25rem;     /* 20px */
+  --text-3xl: 1.5rem;      /* 24px */
+  --text-4xl: 1.875rem;    /* 30px */
+
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* === Spacing === */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+
+  /* === Border Radius === */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* === Shadows === */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
+  --shadow-accent: 0 0 20px rgba(0, 212, 255, 0.2);
+  --shadow-accent-strong: 0 0 40px rgba(0, 212, 255, 0.35);
+
+  /* === Transitions === */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* === Layout === */
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 64px;
+  --titlebar-height: 38px;
+  --tab-height: 40px;
+  --toolbar-height: 40px;
+  --status-bar-height: 24px;
+
+  /* Z-index scale */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-tooltip: 500;
+  --z-toast: 600;
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  --color-base-900: #F8FAFF;
+  --color-base-850: #F2F5FD;
+  --color-base-800: #EDF0FA;
+  --color-base-750: #E5EAF7;
+  --color-base-700: #DAE0F5;
+  --color-base-650: #CDD5F0;
+  --color-base-600: #BEC9EB;
+  --color-base-550: #ADBAe3;
+  --color-base-500: #9AAAD6;
+  --color-base-400: #7B90C4;
+  
+  --color-text-100: #0A0E1A;
+  --color-text-200: #1A2238;
+  --color-text-300: #2A3252;
+  --color-text-400: #3B466C;
+  --color-text-500: #516090;
+  --color-text-600: #6B7FB0;
+  --color-text-700: #8A9EC8;
+
+  --color-border-subtle: rgba(60, 80, 140, 0.1);
+  --color-border-default: rgba(60, 80, 140, 0.18);
+  --color-border-strong: rgba(60, 80, 140, 0.3);
+
+  --glass-bg: rgba(237, 240, 250, 0.85);
+  --glass-bg-light: rgba(248, 250, 255, 0.7);
+  --glass-border: rgba(60, 80, 140, 0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+}

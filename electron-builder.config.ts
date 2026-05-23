@@ -1,0 +1,78 @@
+import { defineConfig } from 'electron-builder'
+
+export default defineConfig({
+  appId: 'com.actionshell.app',
+  productName: 'ActionShell',
+  copyright: 'Copyright © 2025 ActionShell',
+  directories: {
+    output: 'dist',
+    buildResources: 'resources'
+  },
+  files: [
+    'out/**/*',
+    'node_modules/better-sqlite3/**/*',
+    'node_modules/node-pty/**/*',
+    'node_modules/bcryptjs/**/*',
+    'node_modules/ssh2/**/*',
+    'node_modules/jsonwebtoken/**/*',
+    'node_modules/uuid/**/*',
+    'node_modules/speakeasy/**/*',
+    'node_modules/qrcode/**/*',
+    'node_modules/archiver/**/*',
+    '!node_modules/.cache/**/*',
+    '!**/*.map'
+  ],
+  asar: true,
+  asarUnpack: [
+    'node_modules/better-sqlite3/**/*',
+    'node_modules/node-pty/**/*'
+  ],
+  // Windows
+  win: {
+    target: [
+      { target: 'nsis', arch: ['x64'] },
+      { target: 'zip', arch: ['x64'] }
+    ],
+    icon: 'resources/icons/icon.ico',
+    requestedExecutionLevel: 'asInvoker',
+    artifactName: 'ActionShell-${version}-Setup-${arch}.${ext}'
+  },
+  nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: 'ActionShell',
+    installerIcon: 'resources/icons/icon.ico',
+    uninstallerIcon: 'resources/icons/icon.ico',
+    installerHeader: 'resources/icons/icon.ico',
+    license: 'LICENSE.md',
+    artifactName: 'ActionShell-${version}-Setup-${arch}.${ext}'
+  },
+  // Linux
+  linux: {
+    target: [
+      { target: 'deb', arch: ['x64'] },
+      { target: 'AppImage', arch: ['x64'] }
+    ],
+    icon: 'resources/icons',
+    category: 'Network',
+    description: 'Enterprise SSH & SFTP Management Platform',
+    maintainer: 'ActionShell Team',
+    artifactName: 'ActionShell-${version}-${arch}.${ext}'
+  },
+  deb: {
+    depends: ['libsecret-1-0', 'libgtk-3-0', 'libnotify4', 'libnss3', 'libxtst6', 'xdg-utils', 'libatspi2.0-0', 'libuuid1'],
+    packageCategory: 'net'
+  },
+  appImage: {
+    artifactName: 'ActionShell-${version}-${arch}.${ext}'
+  },
+  // GitHub Releases publishing
+  publish: {
+    provider: 'github',
+    owner: 'actionshell-app',
+    repo: 'actionshell',
+    releaseType: 'release'
+  }
+})

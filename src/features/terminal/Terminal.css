@@ -1,0 +1,117 @@
+/* Terminal Manager CSS */
+.terminal-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0A0E1A;
+}
+
+.terminal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: var(--toolbar-height);
+  background: var(--color-base-850);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.terminal-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.terminal-area {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.terminal-area.with-sftp {
+  flex: 0 0 55%;
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+.sftp-area {
+  flex: 1;
+  overflow: hidden;
+  background: var(--color-base-800);
+}
+
+/* Empty state */
+.terminal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--color-base-800);
+  position: relative;
+}
+
+.terminal-empty::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.terminal-empty-inner {
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.terminal-empty-logo {
+  width: 80px; height: 80px;
+  background: var(--color-base-750);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg), 0 0 40px var(--color-accent-glow);
+}
+
+.terminal-empty-inner h2 {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-extrabold);
+  color: var(--color-text-100);
+  letter-spacing: -0.03em;
+}
+
+.terminal-empty-inner p {
+  font-size: var(--text-md);
+  color: var(--color-text-500);
+  max-width: 360px;
+}
+
+.terminal-shortcuts {
+  display: flex;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-base-750);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xs);
+  color: var(--color-text-600);
+}
+
+.terminal-shortcuts kbd {
+  background: var(--color-base-600);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-300);
+  margin-right: 4px;
+}
