@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install system dependencies
+      - name: Install system build dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
@@ -34,20 +34,32 @@ jobs:
             python3 make g++ libx11-dev libxkbfile-dev \
             libnotify-dev libxtst-dev
 
-      - name: Install Node dependencies
+      - name: Install Node dependencies (no scripts)
         run: npm install --legacy-peer-deps --ignore-scripts
 
-      - name: Rebuild native modules for Electron (Linux)
-        run: npx electron-rebuild -f -w better-sqlite3,node-pty
-        timeout-minutes: 20
+      - name: Get Electron version
+        id: electron_ver
+        run: echo "version=$(node -e \"console.log(require('./node_modules/electron/package.json').version)\")" >> $GITHUB_OUTPUT
+
+      - name: Install better-sqlite3 prebuilt for Electron
+        run: |
+          cd node_modules/better-sqlite3
+          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform linux --tag-prefix v || \
+          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform linux --tag-prefix v || \
+          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
+          
+      - name: Install node-pty prebuilt for Electron
+        run: |
+          cd node_modules/node-pty
+          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform linux || \
+          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform linux || \
+          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
 
       - name: Build Vite bundles
         run: npx electron-vite build
 
       - name: Package Linux installers
         run: npx electron-builder --linux deb AppImage --x64 --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -69,20 +81,36 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Node dependencies
+      - name: Install Node dependencies (no scripts)
+        shell: bash
         run: npm install --legacy-peer-deps --ignore-scripts
 
-      - name: Rebuild native modules for Electron (Windows)
-        run: npx electron-rebuild -f -w better-sqlite3,node-pty
-        timeout-minutes: 20
+      - name: Get Electron version
+        id: electron_ver
+        shell: bash
+        run: echo "version=$(node -e \"console.log(require('./node_modules/electron/package.json').version)\")" >> $GITHUB_OUTPUT
+
+      - name: Install better-sqlite3 prebuilt for Electron (Windows)
+        shell: bash
+        run: |
+          cd node_modules/better-sqlite3
+          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 --tag-prefix v || \
+          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform win32 --tag-prefix v || \
+          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
+
+      - name: Install node-pty prebuilt for Electron (Windows)
+        shell: bash
+        run: |
+          cd node_modules/node-pty
+          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 || \
+          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform win32 || \
+          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
 
       - name: Build Vite bundles
         run: npx electron-vite build
 
       - name: Package Windows installer
         run: npx electron-builder --win nsis zip --x64 --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -98,9 +126,6 @@ jobs:
     runs-on: ubuntu-22.04
     if: always() && (needs.build-linux.result == 'success' || needs.build-windows.result == 'success')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
@@ -114,9 +139,6 @@ jobs:
           name: windows-builds
           path: artifacts/windows
         continue-on-error: true
-
-      - name: List artifacts
-        run: find artifacts/ -type f 2>/dev/null || echo "No artifacts"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -139,12 +161,12 @@ jobs:
             | 🐧 Linux | `ActionShell-*-amd64.deb` | Debian/Ubuntu |
 
             ### Installation
-            **Windows:** Run the `.exe` installer, follow prompts.
+            **Windows:** Run `.exe` installer, follow setup prompts.
             **Linux AppImage:** `chmod +x ActionShell-*.AppImage && ./ActionShell-*.AppImage`
             **Linux DEB:** `sudo dpkg -i actionshell_*_amd64.deb`
 
             ### First Launch
-            On first run you will be prompted to create a **Super Admin** account.
+            On first run, create your **Super Admin** account.
           files: |
             artifacts/linux/*.deb
             artifacts/linux/*.AppImage
