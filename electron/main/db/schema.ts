@@ -155,6 +155,7 @@ export const activeSessions = sqliteTable('active_sessions', {
 })
 
 export const appSettings = sqliteTable('app_settings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
   key: text('key').notNull(),
   value: text('value').notNull(),
   userId: text('user_id'),

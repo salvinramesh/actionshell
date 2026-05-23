@@ -56,12 +56,13 @@ function initializeSchema(sqlite: Database.Database) {
     );
 
     CREATE TABLE IF NOT EXISTS app_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       key TEXT NOT NULL,
       value TEXT NOT NULL,
       user_id TEXT REFERENCES users(id),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (key, COALESCE(user_id, ''))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_app_settings_key_user ON app_settings(key, user_id);
 
     CREATE TABLE IF NOT EXISTS teams (
       id TEXT PRIMARY KEY,
