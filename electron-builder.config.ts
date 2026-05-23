@@ -26,8 +26,7 @@ export default defineConfig({
   asar: true,
   asarUnpack: [
     'node_modules/better-sqlite3/**/*',
-    'node_modules/node-pty/**/*',
-    'node_modules/cpu-features/**/*'
+    'node_modules/node-pty/**/*'
   ],
   // Disable electron-builder's own native rebuild — we handle it in CI
   npmRebuild: false,

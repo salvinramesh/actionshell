@@ -47,9 +47,9 @@ jobs:
           npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform linux --tag-prefix v \
             || echo "prebuild-install failed for better-sqlite3 — will compile from source"
 
-      - name: Rebuild node-pty and cpu-features for Electron (Linux)
+      - name: Rebuild node-pty for Electron (Linux)
         run: |
-          npx electron-rebuild -f -w node-pty,cpu-features --target ${{ steps.electron_ver.outputs.version }} --arch x64
+          npx electron-rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
 
       - name: Build Vite bundles
         run: npx electron-vite build
@@ -92,8 +92,8 @@ jobs:
           npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 --tag-prefix v \
             || echo "prebuild-install failed for better-sqlite3 — will compile from source"
 
-      - name: Rebuild node-pty and cpu-features for Electron (Windows)
-        run: npx electron-rebuild -f -w node-pty,cpu-features --target ${{ steps.electron_ver.outputs.version }} --arch x64
+      - name: Rebuild node-pty for Electron (Windows)
+        run: npx electron-rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
 
       - name: Build Vite bundles
         run: npx electron-vite build
