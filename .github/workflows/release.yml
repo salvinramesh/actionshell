@@ -1,0 +1,143 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsecret-1-dev \
+            libgtk-3-dev \
+            libnss3 \
+            python3 \
+            make \
+            g++ \
+            libx11-dev \
+            libxkbfile-dev
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+      - name: Rebuild native modules for Electron
+        run: |
+          npx electron-rebuild -f -w better-sqlite3,node-pty --lifecycle postinstall
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package Linux
+        run: npx electron-builder --linux deb AppImage --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            dist/*.deb
+            dist/*.AppImage
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+      - name: Rebuild native modules for Electron (Windows)
+        run: npx electron-rebuild -f -w better-sqlite3,node-pty
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package Windows
+        run: npx electron-builder --win nsis zip --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            dist/*.exe
+            dist/*.zip
+
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || format('v{0}', github.event.inputs.version) }}
+          name: "ActionShell ${{ github.ref_name || format('v{0}', github.event.inputs.version) }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## ActionShell ${{ github.ref_name }}
+
+            Enterprise SSH & SFTP Management Platform
+
+            ### Downloads
+            | Platform | File | Description |
+            |----------|------|-------------|
+            | 🪟 Windows | `ActionShell-*-Setup-x64.exe` | Windows Installer (NSIS) |
+            | 🪟 Windows | `ActionShell-*-x64.zip` | Windows Portable (ZIP) |
+            | 🐧 Linux | `ActionShell-*-x64.AppImage` | Linux Universal (AppImage) |
+            | 🐧 Linux | `ActionShell-*-amd64.deb` | Debian/Ubuntu Package |
+
+            ### Installation
+            **Windows:** Run the `.exe` installer. Allow UAC if prompted.
+            **Linux AppImage:** `chmod +x ActionShell-*.AppImage && ./ActionShell-*.AppImage`
+            **Linux DEB:** `sudo dpkg -i actionshell_*_amd64.deb`
+
+            ### First Run
+            On first launch, you'll be prompted to create a Super Admin account.
+          files: |
+            artifacts/**/*.exe
+            artifacts/**/*.zip
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
