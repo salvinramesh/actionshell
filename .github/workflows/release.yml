@@ -47,6 +47,9 @@ jobs:
           npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform linux --tag-prefix v \
             || echo "prebuild-install failed for better-sqlite3 — will compile from source"
 
+      - name: Remove cpu-features (optional ssh2 dep with broken gyp)
+        run: rm -rf node_modules/cpu-features
+
       - name: Rebuild node-pty for Electron (Linux)
         run: |
           npx electron-rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
@@ -91,6 +94,10 @@ jobs:
           cd node_modules/better-sqlite3
           npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 --tag-prefix v \
             || echo "prebuild-install failed for better-sqlite3 — will compile from source"
+
+      - name: Remove cpu-features (optional ssh2 dep with broken gyp)
+        shell: bash
+        run: rm -rf node_modules/cpu-features
 
       - name: Rebuild node-pty for Electron (Windows)
         run: npx electron-rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
