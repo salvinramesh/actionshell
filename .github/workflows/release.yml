@@ -81,7 +81,7 @@ jobs:
           node-version: '20'
 
       - name: Install Node dependencies
-        run: npm install --legacy-peer-deps --ignore-scripts
+        run: npm install --legacy-peer-deps --ignore-scripts --include=optional
 
       - name: Get Electron version
         id: electron_ver
