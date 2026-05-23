@@ -19,14 +19,18 @@ export default defineConfig({
     'node_modules/speakeasy/**/*',
     'node_modules/qrcode/**/*',
     'node_modules/archiver/**/*',
+    'node_modules/cpu-features/**/*',
     '!node_modules/.cache/**/*',
     '!**/*.map'
   ],
   asar: true,
   asarUnpack: [
     'node_modules/better-sqlite3/**/*',
-    'node_modules/node-pty/**/*'
+    'node_modules/node-pty/**/*',
+    'node_modules/cpu-features/**/*'
   ],
+  // Disable electron-builder's own native rebuild — we handle it in CI
+  npmRebuild: false,
   // Windows
   win: {
     target: [
@@ -45,7 +49,6 @@ export default defineConfig({
     shortcutName: 'ActionShell',
     installerIcon: 'resources/icons/icon.ico',
     uninstallerIcon: 'resources/icons/icon.ico',
-    installerHeader: 'resources/icons/icon.ico',
     license: 'LICENSE.md',
     artifactName: 'ActionShell-${version}-Setup-${arch}.${ext}'
   },
@@ -68,10 +71,9 @@ export default defineConfig({
   appImage: {
     artifactName: 'ActionShell-${version}-${arch}.${ext}'
   },
-  // GitHub Releases publishing
   publish: {
     provider: 'github',
-    owner: 'actionshell-app',
+    owner: 'salvinramesh',
     repo: 'actionshell',
     releaseType: 'release'
   }
