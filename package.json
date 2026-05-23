@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Enterprise SSH & SFTP Management Platform",
   "main": "./out/main/index.js",
-  "author": "ActionShell Team",
+  "author": {
+    "name": "ActionShell Team",
+    "email": "actionshell@salvinramesh.com"
+  },
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
