@@ -99,8 +99,11 @@ jobs:
         shell: bash
         run: rm -rf node_modules/cpu-features
 
+      - name: Setup Python with setuptools (for node-gyp on Python 3.12)
+        run: pip install setuptools
+
       - name: Rebuild node-pty for Electron (Windows)
-        run: npx electron-rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
+        run: npx @electron/rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
 
       - name: Build Vite bundles
         run: npx electron-vite build
