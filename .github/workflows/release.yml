@@ -25,33 +25,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -qq
           sudo apt-get install -y \
-            libsecret-1-dev \
-            libgtk-3-dev \
-            libnss3 \
-            python3 \
-            make \
-            g++ \
-            libx11-dev \
-            libxkbfile-dev
+            libsecret-1-dev libgtk-3-dev libnss3 \
+            python3 make g++ libx11-dev libxkbfile-dev \
+            libnotify-dev libxtst-dev
 
-      - name: Install dependencies
-        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Install Node dependencies
+        run: npm install --legacy-peer-deps --ignore-scripts
 
-      - name: Rebuild native modules for Electron
-        run: |
-          npx electron-rebuild -f -w better-sqlite3,node-pty --lifecycle postinstall
+      - name: Rebuild native modules for Electron (Linux)
+        run: npx electron-rebuild -f -w better-sqlite3,node-pty
+        timeout-minutes: 20
 
-      - name: Build app
-        run: npm run build
+      - name: Build Vite bundles
+        run: npx electron-vite build
 
-      - name: Package Linux
-        run: npx electron-builder --linux deb AppImage --x64
+      - name: Package Linux installers
+        run: npx electron-builder --linux deb AppImage --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -62,6 +56,7 @@ jobs:
           path: |
             dist/*.deb
             dist/*.AppImage
+          if-no-files-found: warn
 
   build-windows:
     runs-on: windows-latest
@@ -73,19 +68,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Install Node dependencies
+        run: npm install --legacy-peer-deps --ignore-scripts
 
       - name: Rebuild native modules for Electron (Windows)
         run: npx electron-rebuild -f -w better-sqlite3,node-pty
+        timeout-minutes: 20
 
-      - name: Build app
-        run: npm run build
+      - name: Build Vite bundles
+        run: npx electron-vite build
 
-      - name: Package Windows
-        run: npx electron-builder --win nsis zip --x64
+      - name: Package Windows installer
+        run: npx electron-builder --win nsis zip --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -96,15 +91,32 @@ jobs:
           path: |
             dist/*.exe
             dist/*.zip
+          if-no-files-found: warn
 
   release:
     needs: [build-linux, build-windows]
     runs-on: ubuntu-22.04
+    if: always() && (needs.build-linux.result == 'success' || needs.build-windows.result == 'success')
     steps:
-      - name: Download all artifacts
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: linux-builds
+          path: artifacts/linux
+        continue-on-error: true
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-builds
+          path: artifacts/windows
+        continue-on-error: true
+
+      - name: List artifacts
+        run: find artifacts/ -type f 2>/dev/null || echo "No artifacts"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -113,7 +125,6 @@ jobs:
           name: "ActionShell ${{ github.ref_name || format('v{0}', github.event.inputs.version) }}"
           draft: false
           prerelease: false
-          generate_release_notes: true
           body: |
             ## ActionShell ${{ github.ref_name }}
 
@@ -122,22 +133,22 @@ jobs:
             ### Downloads
             | Platform | File | Description |
             |----------|------|-------------|
-            | 🪟 Windows | `ActionShell-*-Setup-x64.exe` | Windows Installer (NSIS) |
-            | 🪟 Windows | `ActionShell-*-x64.zip` | Windows Portable (ZIP) |
-            | 🐧 Linux | `ActionShell-*-x64.AppImage` | Linux Universal (AppImage) |
-            | 🐧 Linux | `ActionShell-*-amd64.deb` | Debian/Ubuntu Package |
+            | 🪟 Windows | `ActionShell-*-Setup-x64.exe` | Windows Installer |
+            | 🪟 Windows | `ActionShell-*-x64.zip` | Windows Portable |
+            | 🐧 Linux | `ActionShell-*-x64.AppImage` | Linux Universal |
+            | 🐧 Linux | `ActionShell-*-amd64.deb` | Debian/Ubuntu |
 
             ### Installation
-            **Windows:** Run the `.exe` installer. Allow UAC if prompted.
+            **Windows:** Run the `.exe` installer, follow prompts.
             **Linux AppImage:** `chmod +x ActionShell-*.AppImage && ./ActionShell-*.AppImage`
             **Linux DEB:** `sudo dpkg -i actionshell_*_amd64.deb`
 
-            ### First Run
-            On first launch, you'll be prompted to create a Super Admin account.
+            ### First Launch
+            On first run you will be prompted to create a **Super Admin** account.
           files: |
-            artifacts/**/*.exe
-            artifacts/**/*.zip
-            artifacts/**/*.AppImage
-            artifacts/**/*.deb
+            artifacts/linux/*.deb
+            artifacts/linux/*.AppImage
+            artifacts/windows/*.exe
+            artifacts/windows/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
