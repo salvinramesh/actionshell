@@ -34,26 +34,28 @@ jobs:
             python3 make g++ libx11-dev libxkbfile-dev \
             libnotify-dev libxtst-dev
 
-      - name: Install Node dependencies (no scripts)
+      - name: Install Node dependencies
         run: npm install --legacy-peer-deps --ignore-scripts
 
       - name: Get Electron version
         id: electron_ver
-        run: echo "version=$(node -e \"console.log(require('./node_modules/electron/package.json').version)\")" >> $GITHUB_OUTPUT
+        run: node -e "process.stdout.write('version=' + require('./node_modules/electron/package.json').version + '\n')" >> $GITHUB_OUTPUT
 
       - name: Install better-sqlite3 prebuilt for Electron
         run: |
+          EVER=${{ steps.electron_ver.outputs.version }}
           cd node_modules/better-sqlite3
-          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform linux --tag-prefix v || \
-          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform linux --tag-prefix v || \
-          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
-          
+          npx prebuild-install --runtime electron --target $EVER --arch x64 --platform linux --tag-prefix v \
+            || npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform linux --tag-prefix v \
+            || npx node-gyp rebuild --target=$EVER --arch=x64 --dist-url=https://electronjs.org/headers
+
       - name: Install node-pty prebuilt for Electron
         run: |
+          EVER=${{ steps.electron_ver.outputs.version }}
           cd node_modules/node-pty
-          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform linux || \
-          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform linux || \
-          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
+          npx prebuild-install --runtime electron --target $EVER --arch x64 --platform linux \
+            || npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform linux \
+            || npx node-gyp rebuild --target=$EVER --arch=x64 --dist-url=https://electronjs.org/headers
 
       - name: Build Vite bundles
         run: npx electron-vite build
@@ -81,30 +83,31 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Node dependencies (no scripts)
-        shell: bash
+      - name: Install Node dependencies
         run: npm install --legacy-peer-deps --ignore-scripts
 
       - name: Get Electron version
         id: electron_ver
         shell: bash
-        run: echo "version=$(node -e \"console.log(require('./node_modules/electron/package.json').version)\")" >> $GITHUB_OUTPUT
+        run: node -e "process.stdout.write('version=' + require('./node_modules/electron/package.json').version + '\n')" >> $GITHUB_OUTPUT
 
       - name: Install better-sqlite3 prebuilt for Electron (Windows)
         shell: bash
         run: |
+          EVER=${{ steps.electron_ver.outputs.version }}
           cd node_modules/better-sqlite3
-          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 --tag-prefix v || \
-          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform win32 --tag-prefix v || \
-          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
+          npx prebuild-install --runtime electron --target $EVER --arch x64 --platform win32 --tag-prefix v \
+            || npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform win32 --tag-prefix v \
+            || npx node-gyp rebuild --target=$EVER --arch=x64 --dist-url=https://electronjs.org/headers
 
       - name: Install node-pty prebuilt for Electron (Windows)
         shell: bash
         run: |
+          EVER=${{ steps.electron_ver.outputs.version }}
           cd node_modules/node-pty
-          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 || \
-          npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform win32 || \
-          npx node-gyp rebuild --target=${{ steps.electron_ver.outputs.version }} --arch=x64 --dist-url=https://electronjs.org/headers
+          npx prebuild-install --runtime electron --target $EVER --arch x64 --platform win32 \
+            || npx prebuild-install --runtime electron --target 30.0.0 --arch x64 --platform win32 \
+            || npx node-gyp rebuild --target=$EVER --arch=x64 --dist-url=https://electronjs.org/headers
 
       - name: Build Vite bundles
         run: npx electron-vite build
