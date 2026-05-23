@@ -19,10 +19,8 @@ export default function App() {
 
   useEffect(() => {
     async function init() {
-      // Check if setup is required
-      const setupRes = await window.actionshell.auth.isSetupRequired()
-      if (setupRes.data === true) { setAppState('setup'); return }
-
+      // With sync server, there's no local setup step.
+      // LoginScreen has a Register tab — first user auto-becomes Super Admin.
       // Try to restore session
       const restored = await restoreSession()
       if (restored) { setAppState('app'); return }

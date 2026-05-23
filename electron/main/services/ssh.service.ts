@@ -1,9 +1,8 @@
 import { Client, ConnectConfig } from 'ssh2'
 import { EventEmitter } from 'events'
 import { v4 as uuidv4 } from 'uuid'
-import { getRawDb } from '../db/database'
-import { decrypt } from './vault.service'
-import { writeAuditLog } from './audit.service'
+import { api } from './api.service'
+import { getHosts, getCredentials, getDecryptedCredential } from './connections.service'
 import type { SSHHost } from '../../../shared/types'
 
 export interface SSHSession {
@@ -22,16 +21,16 @@ const sessions = new Map<string, SSHSession>()
 export const sshEvents = new EventEmitter()
 
 /**
- * Build SSH connect config from host + credentials
+ * Build SSH connect config from host + credentials (fetched from sync server)
  */
 async function buildConnectConfig(hostId: string): Promise<ConnectConfig & { hostName: string }> {
-  const db = getRawDb()
-  
-  const host = db.prepare('SELECT * FROM ssh_hosts WHERE id = ?').get(hostId) as any
+  // Fetch host info from server
+  const hostsRes = await api.get<{ hosts: any[] }>('/hosts')
+  if (!hostsRes.ok) throw new Error('Failed to fetch hosts')
+
+  const host = hostsRes.data.hosts.find((h: any) => h.id === hostId)
   if (!host) throw new Error('Host not found')
-  
-  const cred = db.prepare('SELECT * FROM credentials WHERE host_id = ? LIMIT 1').get(hostId) as any
-  
+
   const config: ConnectConfig & { hostName: string } = {
     hostName: host.name,
     host: host.hostname,
@@ -40,25 +39,31 @@ async function buildConnectConfig(hostId: string): Promise<ConnectConfig & { hos
     readyTimeout: (host.connection_timeout || 30) * 1000,
     keepaliveInterval: host.keepalive_interval ? host.keepalive_interval * 1000 : 0,
   }
-  
-  if (cred) {
-    if (cred.type === 'password') {
-      config.password = decrypt(cred.encrypted_value)
-    } else {
-      // Key-based auth
-      const privateKey = decrypt(cred.encrypted_value)
-      config.privateKey = privateKey
-      if (cred.passphrase_encrypted) {
-        config.passphrase = decrypt(cred.passphrase_encrypted)
+
+  // Fetch credentials for this host
+  const creds = await getCredentials(hostId)
+  if (creds.length > 0) {
+    // Get the first credential's decrypted value from the server
+    const decrypted = await getDecryptedCredential(creds[0].id)
+
+    if (decrypted) {
+      if (decrypted.type === 'password') {
+        config.password = decrypted.value
+      } else {
+        // Key-based auth
+        config.privateKey = decrypted.value
+        if (decrypted.passphrase) {
+          config.passphrase = decrypted.passphrase
+        }
       }
     }
   }
-  
+
   // Jump host (proxy)
   if (host.jump_host_id) {
     // TODO: ProxyJump implementation
   }
-  
+
   return config
 }
 
@@ -117,15 +122,14 @@ export async function spawnSSHSession(
             sshEvents.emit('terminal:close', { sessionId })
           })
           
-          writeAuditLog({
-            actorId,
+          // Audit log via server
+          api.post('/audit-action', {
             action: 'SSH_CONNECT',
             resourceType: 'host',
             resourceId: hostId,
             resourceName: config.hostName,
             details: { sessionId, host: config.host, port: config.port },
-            severity: 'info'
-          })
+          }).catch(() => {}) // Non-blocking
           
           resolve()
         })
@@ -189,17 +193,6 @@ export async function closeSession(sessionId: string, actorId?: string): Promise
     } catch {}
     session.status = 'closed'
     sessions.delete(sessionId)
-    
-    if (actorId) {
-      await writeAuditLog({
-        actorId,
-        action: 'SSH_DISCONNECT',
-        resourceType: 'host',
-        resourceId: hostId,
-        details: { sessionId },
-        severity: 'info'
-      })
-    }
   }
 }
 

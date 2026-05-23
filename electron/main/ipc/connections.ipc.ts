@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow, dialog } from 'electron'
 import {
   getHosts, createHost, updateHost, deleteHost, toggleFavorite,
   getGroups, createGroup, deleteGroup,
-  addCredential, getCredentials, deleteCredential,
+  addCredential, getCredentials, getDecryptedCredential, deleteCredential,
   getHostPermissions, grantPermission, revokePermission,
   getSnippets, createSnippet, deleteSnippet
 } from '../services/connections.service'
@@ -12,7 +12,7 @@ import type { IpcResponse, UserRole } from '../../../shared/types'
 export function registerConnectionsIPC(mainWindow: BrowserWindow) {
   // Hosts
   ipcMain.handle('connections:list', async (_, { userId, userRole }): Promise<IpcResponse> => {
-    return { success: true, data: getHosts(userId, userRole) }
+    return { success: true, data: await getHosts(userId, userRole) }
   })
 
   ipcMain.handle('connections:create', async (_, { data, userId }): Promise<IpcResponse> => {
@@ -28,7 +28,7 @@ export function registerConnectionsIPC(mainWindow: BrowserWindow) {
   })
 
   ipcMain.handle('connections:favorite', async (_, { id }): Promise<IpcResponse> => {
-    toggleFavorite(id)
+    await toggleFavorite(id)
     return { success: true }
   })
 
@@ -39,16 +39,16 @@ export function registerConnectionsIPC(mainWindow: BrowserWindow) {
 
   // Groups
   ipcMain.handle('connections:groups:list', async (): Promise<IpcResponse> => {
-    return { success: true, data: getGroups() }
+    return { success: true, data: await getGroups() }
   })
 
   ipcMain.handle('connections:groups:create', async (_, { data, userId }): Promise<IpcResponse> => {
-    const group = createGroup(data, userId)
+    const group = await createGroup(data, userId)
     return { success: true, data: group }
   })
 
   ipcMain.handle('connections:groups:delete', async (_, { id }): Promise<IpcResponse> => {
-    deleteGroup(id)
+    await deleteGroup(id)
     return { success: true }
   })
 
@@ -58,7 +58,13 @@ export function registerConnectionsIPC(mainWindow: BrowserWindow) {
   })
 
   ipcMain.handle('credentials:list', async (_, { hostId }): Promise<IpcResponse> => {
-    return { success: true, data: getCredentials(hostId) }
+    return { success: true, data: await getCredentials(hostId) }
+  })
+
+  ipcMain.handle('credentials:decrypt', async (_, { credentialId }): Promise<IpcResponse> => {
+    const result = await getDecryptedCredential(credentialId)
+    if (!result) return { success: false, error: 'Credential not found' }
+    return { success: true, data: result }
   })
 
   ipcMain.handle('credentials:delete', async (_, { id, userId }): Promise<IpcResponse> => {
@@ -67,7 +73,7 @@ export function registerConnectionsIPC(mainWindow: BrowserWindow) {
 
   // Server permissions (admin)
   ipcMain.handle('admin:permissions:list', async (_, { hostId }): Promise<IpcResponse> => {
-    return { success: true, data: getHostPermissions(hostId) }
+    return { success: true, data: await getHostPermissions(hostId) }
   })
 
   ipcMain.handle('admin:permissions:grant', async (_, { data, actorId }): Promise<IpcResponse> => {
@@ -80,7 +86,7 @@ export function registerConnectionsIPC(mainWindow: BrowserWindow) {
 
   // Snippets
   ipcMain.handle('snippets:list', async (_, { userId, userRole }): Promise<IpcResponse> => {
-    return { success: true, data: getSnippets(userId, userRole) }
+    return { success: true, data: await getSnippets(userId, userRole) }
   })
 
   ipcMain.handle('snippets:create', async (_, { data, userId }): Promise<IpcResponse> => {
@@ -88,6 +94,7 @@ export function registerConnectionsIPC(mainWindow: BrowserWindow) {
   })
 
   ipcMain.handle('snippets:delete', async (_, { id, userId }): Promise<IpcResponse> => {
-    return { success: true, data: deleteSnippet(id, userId) }
+    deleteSnippet(id, userId)
+    return { success: true }
   })
 }

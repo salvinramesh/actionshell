@@ -2,8 +2,8 @@ import { Client, SFTPWrapper } from 'ssh2'
 import { EventEmitter } from 'events'
 import path from 'path'
 import fs from 'fs'
-import { getRawDb } from '../db/database'
-import { decrypt } from './vault.service'
+import { api } from './api.service'
+import { getCredentials, getDecryptedCredential } from './connections.service'
 import { writeAuditLog } from './audit.service'
 import type { SFTPEntry } from '../../../shared/types'
 
@@ -19,11 +19,11 @@ const sftpSessions = new Map<string, SFTPSession>()
 export const sftpEvents = new EventEmitter()
 
 async function buildConnectConfig(hostId: string): Promise<any> {
-  const db = getRawDb()
-  const host = db.prepare('SELECT * FROM ssh_hosts WHERE id = ?').get(hostId) as any
+  const hostsRes = await api.get<{ hosts: any[] }>('/hosts')
+  if (!hostsRes.ok) throw new Error('Failed to fetch hosts')
+
+  const host = hostsRes.data.hosts.find((h: any) => h.id === hostId)
   if (!host) throw new Error('Host not found')
-  
-  const cred = db.prepare('SELECT * FROM credentials WHERE host_id = ? LIMIT 1').get(hostId) as any
   
   const config: any = {
     host: host.hostname,
@@ -32,13 +32,17 @@ async function buildConnectConfig(hostId: string): Promise<any> {
     readyTimeout: 30000,
   }
   
-  if (cred) {
-    if (cred.type === 'password') {
-      config.password = decrypt(cred.encrypted_value)
-    } else {
-      config.privateKey = decrypt(cred.encrypted_value)
-      if (cred.passphrase_encrypted) {
-        config.passphrase = decrypt(cred.passphrase_encrypted)
+  const creds = await getCredentials(hostId)
+  if (creds.length > 0) {
+    const decrypted = await getDecryptedCredential(creds[0].id)
+    if (decrypted) {
+      if (decrypted.type === 'password') {
+        config.password = decrypted.value
+      } else {
+        config.privateKey = decrypted.value
+        if (decrypted.passphrase) {
+          config.passphrase = decrypted.passphrase
+        }
       }
     }
   }
@@ -152,8 +156,8 @@ export async function uploadFile(
     const readStream = fs.createReadStream(localPath)
     const writeStream = session.sftp.createWriteStream(remotePath)
     
-    readStream.on('data', (chunk: Buffer) => {
-      transferred += chunk.length
+    readStream.on('data', (chunk: string | Buffer) => {
+      transferred += typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length
       onProgress?.(transferred, total)
       sftpEvents.emit('transfer:progress', { sessionId, transferred, total, remotePath })
     })

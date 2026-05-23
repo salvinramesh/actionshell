@@ -1,18 +1,10 @@
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
-import { v4 as uuidv4 } from 'uuid'
-import { getRawDb } from '../db/database'
-import { writeAuditLog } from './audit.service'
+import { api, setAuthToken, getAuthToken } from './api.service'
 import type { AuthSession, User, UserRole } from '../../../shared/types'
 
-const SALT_ROUNDS = 12
-const JWT_SECRET = 'actionshell-local-jwt-secret-' + process.pid // In-memory only
-const SESSION_DURATION_MS = 8 * 60 * 60 * 1000 // 8 hours
-const MAX_FAILED_ATTEMPTS = 5
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
+const SESSION_DURATION_MS = 8 * 60 * 60 * 1000
 
-// In-memory session store (no disk persistence for security)
-const activeSessions = new Map<string, AuthSession>()
+// In-memory session (mirrors server JWT)
+let currentSession: AuthSession | null = null
 
 export interface SetupData {
   name: string
@@ -26,217 +18,181 @@ export interface LoginData {
   mfaCode?: string
 }
 
-/**
- * Check if the app has been set up (any users exist)
- */
-export function isSetupRequired(): boolean {
-  const db = getRawDb()
-  const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }
-  return row.count === 0
+export interface RegisterData {
+  name: string
+  email: string
+  password: string
 }
 
 /**
- * First-run setup: create super admin
+ * Check if the app needs setup (no users on server)
+ * We attempt login; if server has no users, registration page shows.
+ * For simplicity: we try /api/health and let the UI decide.
+ */
+export async function isSetupRequired(): Promise<boolean> {
+  // With the sync server, "setup" is just "register first user"
+  // The UI shows Register form. First user auto-becomes super_admin.
+  return currentSession === null
+}
+
+/**
+ * Register a new user on the sync server
+ */
+export async function register(data: RegisterData): Promise<{
+  success: boolean
+  session?: AuthSession
+  pending?: boolean
+  error?: string
+}> {
+  const res = await api.post<{
+    message: string
+    user: { id: string; email: string; name: string; role: string; status: string }
+    token?: string
+  }>('/auth/register', data)
+
+  if (!res.ok) {
+    return { success: false, error: (res.data as any).error || 'Registration failed' }
+  }
+
+  // First user gets auto-login token
+  if (res.data.token) {
+    setAuthToken(res.data.token)
+    currentSession = {
+      userId: res.data.user.id,
+      email: res.data.user.email,
+      name: res.data.user.name,
+      role: res.data.user.role as UserRole,
+      token: res.data.token,
+      expiresAt: Date.now() + SESSION_DURATION_MS,
+    }
+    return { success: true, session: currentSession }
+  }
+
+  // Non-first user — pending approval
+  return { success: true, pending: true }
+}
+
+/**
+ * First-run setup: create super admin (just calls register)
  */
 export async function setupSuperAdmin(data: SetupData): Promise<{ success: boolean; error?: string }> {
-  try {
-    const db = getRawDb()
-    
-    // Check already exists
-    if (!isSetupRequired()) {
-      return { success: false, error: 'Application already set up' }
-    }
-    
-    const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS)
-    const id = uuidv4()
-    const now = new Date().toISOString()
-    
-    db.prepare(`
-      INSERT INTO users (id, email, name, password_hash, role, is_active, created_at)
-      VALUES (?, ?, ?, ?, 'super_admin', 1, ?)
-    `).run(id, data.email.toLowerCase(), data.name, passwordHash, now)
-    
-    await writeAuditLog({
-      actorId: id,
-      actorEmail: data.email,
-      action: 'SYSTEM_SETUP',
-      resourceType: 'system',
-      details: { message: 'ActionShell initial setup completed' },
-      severity: 'info'
-    })
-    
-    return { success: true }
-  } catch (err: unknown) {
-    return { success: false, error: (err as Error).message }
-  }
+  const result = await register(data)
+  if (!result.success) return { success: false, error: result.error }
+  return { success: true }
 }
 
 /**
- * Login user, return session
+ * Login user via sync server
  */
-export async function login(data: LoginData): Promise<{ success: boolean; session?: AuthSession; error?: string }> {
-  const db = getRawDb()
-  
-  const user = db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').get(data.email.toLowerCase()) as any
-  
-  if (!user) {
-    return { success: false, error: 'Invalid email or password' }
+export async function login(data: LoginData): Promise<{
+  success: boolean
+  session?: AuthSession
+  error?: string
+}> {
+  const res = await api.post<{
+    token: string
+    user: { id: string; email: string; name: string; role: string; status: string }
+    error?: string
+  }>('/auth/login', data)
+
+  if (!res.ok) {
+    return { success: false, error: (res.data as any).error || 'Login failed' }
   }
-  
-  // Check lockout
-  if (user.locked_until) {
-    const lockUntil = new Date(user.locked_until).getTime()
-    if (Date.now() < lockUntil) {
-      const remaining = Math.ceil((lockUntil - Date.now()) / 1000 / 60)
-      return { success: false, error: `Account locked. Try again in ${remaining} minutes.` }
-    } else {
-      // Lockout expired, reset
-      db.prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?').run(user.id)
-    }
+
+  setAuthToken(res.data.token)
+  currentSession = {
+    userId: res.data.user.id,
+    email: res.data.user.email,
+    name: res.data.user.name,
+    role: res.data.user.role as UserRole,
+    token: res.data.token,
+    expiresAt: Date.now() + SESSION_DURATION_MS,
   }
-  
-  if (user.is_locked) {
-    return { success: false, error: 'Account has been locked by an administrator' }
-  }
-  
-  // Verify password
-  const passwordMatch = await bcrypt.compare(data.password, user.password_hash)
-  
-  if (!passwordMatch) {
-    const attempts = (user.failed_login_attempts || 0) + 1
-    
-    if (attempts >= MAX_FAILED_ATTEMPTS) {
-      const lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString()
-      db.prepare('UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?')
-        .run(attempts, lockUntil, user.id)
-      
-      await writeAuditLog({
-        actorId: user.id,
-        actorEmail: user.email,
-        action: 'AUTH_LOCKOUT',
-        resourceType: 'user',
-        resourceId: user.id,
-        details: { reason: 'Too many failed attempts' },
-        severity: 'warning'
-      })
-      
-      return { success: false, error: `Too many failed attempts. Account locked for 15 minutes.` }
-    }
-    
-    db.prepare('UPDATE users SET failed_login_attempts = ? WHERE id = ?').run(attempts, user.id)
-    
-    await writeAuditLog({
-      actorId: user.id,
-      actorEmail: user.email,
-      action: 'AUTH_FAILED',
-      details: { attempts },
-      severity: 'warning'
-    })
-    
-    return { success: false, error: 'Invalid email or password' }
-  }
-  
-  // TODO: MFA check if enabled
-  
-  // Reset failed attempts on success
-  db.prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = ? WHERE id = ?')
-    .run(new Date().toISOString(), user.id)
-  
-  const session = createSession(user)
-  
-  await writeAuditLog({
-    actorId: user.id,
-    actorEmail: user.email,
-    action: 'AUTH_LOGIN',
-    resourceType: 'user',
-    resourceId: user.id,
-    details: { role: user.role },
-    severity: 'info'
-  })
-  
-  return { success: true, session }
+
+  return { success: true, session: currentSession }
 }
 
 /**
- * Create an in-memory session
- */
-function createSession(user: any): AuthSession {
-  const expiresAt = Date.now() + SESSION_DURATION_MS
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, role: user.role },
-    JWT_SECRET,
-    { expiresIn: SESSION_DURATION_MS / 1000 }
-  )
-  
-  const session: AuthSession = {
-    userId: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role as UserRole,
-    token,
-    expiresAt
-  }
-  
-  activeSessions.set(token, session)
-  return session
-}
-
-/**
- * Validate a session token
+ * Validate current session
  */
 export function validateSession(token: string): AuthSession | null {
-  try {
-    jwt.verify(token, JWT_SECRET)
-    const session = activeSessions.get(token)
-    if (!session) return null
-    if (Date.now() > session.expiresAt) {
-      activeSessions.delete(token)
-      return null
-    }
-    return session
-  } catch {
+  if (!currentSession || currentSession.token !== token) return null
+  if (Date.now() > currentSession.expiresAt) {
+    currentSession = null
+    setAuthToken(null)
     return null
   }
+  return currentSession
 }
 
 /**
- * Logout / revoke session
+ * Logout
  */
-export async function logout(token: string): Promise<void> {
-  const session = activeSessions.get(token)
-  if (session) {
-    activeSessions.delete(token)
-    await writeAuditLog({
-      actorId: session.userId,
-      actorEmail: session.email,
-      action: 'AUTH_LOGOUT',
-      severity: 'info'
-    })
-  }
+export async function logout(_token: string): Promise<void> {
+  currentSession = null
+  setAuthToken(null)
 }
 
 /**
  * Get all users (admin only)
  */
-export function getUsers(): User[] {
-  const db = getRawDb()
-  const rows = db.prepare('SELECT id, email, name, role, is_active, is_locked, mfa_enabled, last_login_at, created_at FROM users ORDER BY created_at ASC').all() as any[]
-  
-  return rows.map(r => ({
-    id: r.id,
-    email: r.email,
-    name: r.name,
-    role: r.role as UserRole,
-    isActive: Boolean(r.is_active),
-    isLocked: Boolean(r.is_locked),
-    mfaEnabled: Boolean(r.mfa_enabled),
-    lastLoginAt: r.last_login_at,
-    createdAt: r.created_at
+export async function getUsers(): Promise<User[]> {
+  const res = await api.get<{ users: any[] }>('/users')
+  if (!res.ok) return []
+
+  return res.data.users.map((u: any) => ({
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role as UserRole,
+    isActive: u.status === 'active',
+    isLocked: u.status === 'locked',
+    mfaEnabled: Boolean(u.mfa_enabled),
+    lastLoginAt: u.last_login_at,
+    createdAt: u.created_at,
+    status: u.status,
   }))
 }
 
 /**
- * Create a new user
+ * Get pending users (admin only)
+ */
+export async function getPendingUsers(): Promise<User[]> {
+  const res = await api.get<{ users: any[] }>('/users?status=pending')
+  if (!res.ok) return []
+
+  return res.data.users.map((u: any) => ({
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role as UserRole,
+    isActive: false,
+    isLocked: false,
+    mfaEnabled: false,
+    lastLoginAt: null,
+    createdAt: u.created_at,
+    status: 'pending',
+  }))
+}
+
+/**
+ * Approve a pending user
+ */
+export async function approveUser(userId: string): Promise<{ success: boolean; error?: string }> {
+  const res = await api.patch<{ message: string; error?: string }>(`/users/${userId}/approve`)
+  return res.ok ? { success: true } : { success: false, error: (res.data as any).error }
+}
+
+/**
+ * Reject a pending user
+ */
+export async function rejectUser(userId: string): Promise<{ success: boolean; error?: string }> {
+  const res = await api.patch<{ message: string; error?: string }>(`/users/${userId}/reject`)
+  return res.ok ? { success: true } : { success: false, error: (res.data as any).error }
+}
+
+/**
+ * Create a new user (admin bypass — immediately active)
  */
 export async function createUser(data: {
   name: string
@@ -245,36 +201,10 @@ export async function createUser(data: {
   role: UserRole
   createdBy: string
 }): Promise<{ success: boolean; userId?: string; error?: string }> {
-  try {
-    const db = getRawDb()
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(data.email.toLowerCase())
-    if (existing) {
-      return { success: false, error: 'Email already in use' }
-    }
-    
-    const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS)
-    const id = uuidv4()
-    const now = new Date().toISOString()
-    
-    db.prepare(`
-      INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, created_by)
-      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-    `).run(id, data.email.toLowerCase(), data.name, passwordHash, data.role, now, data.createdBy)
-    
-    await writeAuditLog({
-      actorId: data.createdBy,
-      action: 'USER_CREATED',
-      resourceType: 'user',
-      resourceId: id,
-      resourceName: data.email,
-      details: { role: data.role },
-      severity: 'info'
-    })
-    
-    return { success: true, userId: id }
-  } catch (err: unknown) {
-    return { success: false, error: (err as Error).message }
-  }
+  const res = await api.post<{ user: { id: string }; error?: string }>('/users', data)
+  return res.ok
+    ? { success: true, userId: (res.data as any).user?.id }
+    : { success: false, error: (res.data as any).error }
 }
 
 /**
@@ -283,36 +213,16 @@ export async function createUser(data: {
 export async function updateUser(
   targetId: string,
   data: Partial<{ name: string; role: UserRole; isActive: boolean; isLocked: boolean }>,
-  actorId: string
+  _actorId: string
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    const db = getRawDb()
-    const fields: string[] = []
-    const values: unknown[] = []
-    
-    if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name) }
-    if (data.role !== undefined) { fields.push('role = ?'); values.push(data.role) }
-    if (data.isActive !== undefined) { fields.push('is_active = ?'); values.push(data.isActive ? 1 : 0) }
-    if (data.isLocked !== undefined) { fields.push('is_locked = ?'); values.push(data.isLocked ? 1 : 0) }
-    
-    if (fields.length === 0) return { success: true }
-    
-    values.push(targetId)
-    db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...values)
-    
-    await writeAuditLog({
-      actorId,
-      action: 'USER_UPDATED',
-      resourceType: 'user',
-      resourceId: targetId,
-      details: data,
-      severity: 'info'
-    })
-    
-    return { success: true }
-  } catch (err: unknown) {
-    return { success: false, error: (err as Error).message }
-  }
+  const body: any = {}
+  if (data.name !== undefined) body.name = data.name
+  if (data.role !== undefined) body.role = data.role
+  if (data.isActive !== undefined) body.status = data.isActive ? 'active' : 'disabled'
+  if (data.isLocked !== undefined) body.status = data.isLocked ? 'locked' : 'active'
+
+  const res = await api.patch<{ error?: string }>(`/users/${targetId}`, body)
+  return res.ok ? { success: true } : { success: false, error: (res.data as any).error }
 }
 
 /**
@@ -320,25 +230,8 @@ export async function updateUser(
  */
 export async function deleteUser(
   targetId: string,
-  actorId: string
+  _actorId: string
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    const db = getRawDb()
-    const user = db.prepare('SELECT email FROM users WHERE id = ?').get(targetId) as any
-    
-    db.prepare('DELETE FROM users WHERE id = ?').run(targetId)
-    
-    await writeAuditLog({
-      actorId,
-      action: 'USER_DELETED',
-      resourceType: 'user',
-      resourceId: targetId,
-      resourceName: user?.email,
-      severity: 'warning'
-    })
-    
-    return { success: true }
-  } catch (err: unknown) {
-    return { success: false, error: (err as Error).message }
-  }
+  const res = await api.delete<{ error?: string }>(`/users/${targetId}`)
+  return res.ok ? { success: true } : { success: false, error: (res.data as any).error }
 }

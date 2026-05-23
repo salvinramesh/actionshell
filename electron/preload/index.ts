@@ -6,6 +6,7 @@ const api = {
   auth: {
     isSetupRequired: () => ipcRenderer.invoke('auth:is-setup-required'),
     setup: (data: any) => ipcRenderer.invoke('auth:setup', data),
+    register: (data: any) => ipcRenderer.invoke('auth:register', data),
     login: (data: any) => ipcRenderer.invoke('auth:login', data),
     logout: (token: string) => ipcRenderer.invoke('auth:logout', token),
     validate: (token: string) => ipcRenderer.invoke('auth:validate', token),
@@ -14,6 +15,9 @@ const api = {
   // Admin - Users
   adminUsers: {
     list: () => ipcRenderer.invoke('admin:users:list'),
+    pending: () => ipcRenderer.invoke('admin:users:pending'),
+    approve: (id: string) => ipcRenderer.invoke('admin:users:approve', { id }),
+    reject: (id: string) => ipcRenderer.invoke('admin:users:reject', { id }),
     create: (data: any) => ipcRenderer.invoke('admin:users:create', data),
     update: (id: string, data: any, actorId: string) => ipcRenderer.invoke('admin:users:update', { id, data, actorId }),
     delete: (id: string, actorId: string) => ipcRenderer.invoke('admin:users:delete', { id, actorId }),

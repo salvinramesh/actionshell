@@ -5,17 +5,21 @@ import './Auth.module.css'
 
 interface Props { onLogin: () => void }
 
+type Mode = 'login' | 'register'
+
 export default function LoginScreen({ onLogin }: Props) {
   const { setSession } = useAuthStore()
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [mode, setMode] = useState<Mode>('login')
+  const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setSuccess('')
     try {
-      const res = await window.actionshell.auth.login(form)
+      const res = await window.actionshell.auth.login({ email: form.email, password: form.password })
       if (res.success && res.data) {
         setSession(res.data as AuthSession)
         onLogin()
@@ -26,31 +30,93 @@ export default function LoginScreen({ onLogin }: Props) {
     finally { setLoading(false) }
   }
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true); setError(''); setSuccess('')
+    try {
+      const res = await window.actionshell.auth.register(form)
+      if (res.success && res.data) {
+        if ((res.data as any).pending) {
+          setSuccess('Registration successful! Your account is pending admin approval. You will be able to login once an admin approves your account.')
+          setMode('login')
+        } else {
+          // First user — auto-logged in as super admin
+          setSession(res.data as AuthSession)
+          onLogin()
+        }
+      } else {
+        setError(res.error || 'Registration failed')
+      }
+    } catch { setError('Registration failed') }
+    finally { setLoading(false) }
+  }
+
   return (
     <div className="auth-screen">
       <div className="auth-bg-grid" />
       <div className="auth-card animate-scaleIn">
         <div className="auth-logo">
           <AppLogo />
-          <h1>Welcome back</h1>
-          <p>Sign in to your ActionShell account</p>
+          <h1>{mode === 'login' ? 'Welcome back' : 'Create Account'}</h1>
+          <p>{mode === 'login' ? 'Sign in to your ActionShell account' : 'Register for a new ActionShell account'}</p>
         </div>
-        <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <label className="form-label">Email</label>
-            <input className="form-input" type="email" placeholder="admin@company.com"
-              value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} required autoFocus />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input className="form-input" type="password" placeholder="••••••••"
-              value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required />
-          </div>
-          {error && <p className="form-error" style={{textAlign:'center'}}>{error}</p>}
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{width:'100%',padding:'10px'}}>
-            {loading ? <><span className="spinner"/>Signing in...</> : 'Sign In'}
-          </button>
-        </form>
+
+        {mode === 'login' ? (
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" placeholder="admin@company.com"
+                value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} required autoFocus />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input className="form-input" type="password" placeholder="••••••••"
+                value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required />
+            </div>
+            {error && <p className="form-error" style={{textAlign:'center'}}>{error}</p>}
+            {success && <p className="form-success" style={{textAlign:'center',color:'#A6E3A1',fontSize:'13px',marginBottom:'12px'}}>{success}</p>}
+            <button className="btn btn-primary" type="submit" disabled={loading} style={{width:'100%',padding:'10px'}}>
+              {loading ? <><span className="spinner"/>Signing in...</> : 'Sign In'}
+            </button>
+            <p style={{textAlign:'center',marginTop:'16px',fontSize:'13px',color:'var(--color-text-400)'}}>
+              Don't have an account?{' '}
+              <button type="button" onClick={() => { setMode('register'); setError(''); setSuccess('') }}
+                style={{color:'#00D4FF',background:'none',border:'none',cursor:'pointer',fontSize:'13px',fontWeight:600,textDecoration:'underline'}}>
+                Register
+              </button>
+            </p>
+          </form>
+        ) : (
+          <form onSubmit={handleRegister}>
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input className="form-input" type="text" placeholder="John Doe"
+                value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} required autoFocus />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" placeholder="you@company.com"
+                value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input className="form-input" type="password" placeholder="Min 8 characters"
+                value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required minLength={8} />
+            </div>
+            {error && <p className="form-error" style={{textAlign:'center'}}>{error}</p>}
+            <button className="btn btn-primary" type="submit" disabled={loading} style={{width:'100%',padding:'10px'}}>
+              {loading ? <><span className="spinner"/>Creating account...</> : 'Register'}
+            </button>
+            <p style={{textAlign:'center',marginTop:'16px',fontSize:'13px',color:'var(--color-text-400)'}}>
+              Already have an account?{' '}
+              <button type="button" onClick={() => { setMode('login'); setError(''); setSuccess('') }}
+                style={{color:'#00D4FF',background:'none',border:'none',cursor:'pointer',fontSize:'13px',fontWeight:600,textDecoration:'underline'}}>
+                Sign In
+              </button>
+            </p>
+          </form>
+        )}
+
         <p className="auth-footer-note">ActionShell — Enterprise SSH & SFTP Manager</p>
       </div>
     </div>

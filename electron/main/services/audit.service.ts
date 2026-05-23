@@ -1,4 +1,4 @@
-import { getRawDb } from '../db/database'
+import { api } from './api.service'
 import type { AuditSeverity } from '../../../shared/types'
 
 interface AuditEntry {
@@ -13,32 +13,20 @@ interface AuditEntry {
   severity?: AuditSeverity
 }
 
+/**
+ * Write audit log — now a no-op on the desktop side.
+ * All audit logging is handled server-side by the API routes.
+ * This stub exists so existing callers don't break.
+ */
 export async function writeAuditLog(entry: AuditEntry): Promise<void> {
-  try {
-    const db = getRawDb()
-    const now = new Date().toISOString()
-    
-    db.prepare(`
-      INSERT INTO audit_logs (actor_id, actor_email, action, resource_type, resource_id, resource_name, ip_address, details, severity, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      entry.actorId ?? null,
-      entry.actorEmail ?? null,
-      entry.action,
-      entry.resourceType ?? null,
-      entry.resourceId ?? null,
-      entry.resourceName ?? null,
-      entry.ipAddress ?? null,
-      entry.details ? JSON.stringify(entry.details) : null,
-      entry.severity ?? 'info',
-      now
-    )
-  } catch (err) {
-    console.error('[AuditService] Failed to write audit log:', err)
-  }
+  // Audit logs are now written server-side automatically
+  // when API endpoints are called. This is a no-op stub.
 }
 
-export function getAuditLogs(filters: {
+/**
+ * Get audit logs from the sync server
+ */
+export async function getAuditLogs(filters: {
   actorId?: string
   action?: string
   resourceType?: string
@@ -48,36 +36,35 @@ export function getAuditLogs(filters: {
   limit?: number
   offset?: number
 }) {
-  const db = getRawDb()
-  const conditions: string[] = []
-  const params: unknown[] = []
-  
-  if (filters.actorId) { conditions.push('actor_id = ?'); params.push(filters.actorId) }
-  if (filters.action) { conditions.push('action LIKE ?'); params.push(`%${filters.action}%`) }
-  if (filters.resourceType) { conditions.push('resource_type = ?'); params.push(filters.resourceType) }
-  if (filters.severity) { conditions.push('severity = ?'); params.push(filters.severity) }
-  if (filters.from) { conditions.push('created_at >= ?'); params.push(filters.from) }
-  if (filters.to) { conditions.push('created_at <= ?'); params.push(filters.to) }
-  
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-  const limit = filters.limit ?? 100
-  const offset = filters.offset ?? 0
-  
-  const rows = db.prepare(`
-    SELECT * FROM audit_logs ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?
-  `).all(...params, limit, offset) as any[]
-  
-  return rows.map(r => ({
+  const params = new URLSearchParams()
+  if (filters.actorId) params.set('actorId', filters.actorId)
+  if (filters.action) params.set('action', filters.action)
+  if (filters.resourceType) params.set('resourceType', filters.resourceType)
+  if (filters.severity) params.set('severity', filters.severity)
+  if (filters.from) params.set('from', filters.from)
+  if (filters.to) params.set('to', filters.to)
+  if (filters.limit) params.set('limit', String(filters.limit))
+  if (filters.offset) {
+    const page = Math.floor(filters.offset / (filters.limit || 100)) + 1
+    params.set('page', String(page))
+  }
+
+  const qs = params.toString()
+  const res = await api.get<{ logs: any[]; pagination: any }>(`/audit${qs ? '?' + qs : ''}`)
+  if (!res.ok) return []
+
+  return res.data.logs.map((r: any) => ({
     id: r.id,
     actorId: r.actor_id,
     actorEmail: r.actor_email,
+    actorName: r.actor_name,
     action: r.action,
     resourceType: r.resource_type,
     resourceId: r.resource_id,
     resourceName: r.resource_name,
     ipAddress: r.ip_address,
-    details: r.details ? JSON.parse(r.details) : null,
+    details: typeof r.details === 'string' ? JSON.parse(r.details) : r.details,
     severity: r.severity,
-    createdAt: r.created_at
+    createdAt: r.created_at,
   }))
 }

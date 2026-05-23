@@ -1,7 +1,5 @@
 import { app, BrowserWindow, shell, nativeTheme } from 'electron'
 import path from 'path'
-import { getDatabase, closeDatabase } from './db/database'
-import { initializeVault, clearVaultCache } from './services/vault.service'
 import { closeAllSessions } from './services/ssh.service'
 import { closeAllSFTPSessions } from './services/sftp.service'
 import { killAllPTY } from './services/pty.service'
@@ -68,16 +66,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
-  // Initialize database and vault
-  try {
-    getDatabase()
-    initializeVault()
-  } catch (err) {
-    console.error('Failed to initialize:', err)
-    app.quit()
-    return
-  }
-
+  // No local database needed — all data lives on the sync server
   mainWindow = createWindow()
 
   // Register all IPC handlers
@@ -127,8 +116,6 @@ function cleanup() {
   closeAllSessions()
   closeAllSFTPSessions()
   killAllPTY()
-  clearVaultCache()
-  closeDatabase()
 }
 
 // Security: block new window creation
