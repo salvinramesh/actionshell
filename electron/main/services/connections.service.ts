@@ -43,10 +43,10 @@ function parseHost(r: any): SSHHost {
 export async function createHost(
   data: CreateHostRequest,
   _userId: string
-): Promise<{ success: boolean; host?: SSHHost; error?: string }> {
+): Promise<{ success: boolean; data?: SSHHost; error?: string }> {
   const res = await api.post<{ host: any; error?: string }>('/hosts', data)
   if (!res.ok) return { success: false, error: (res.data as any).error }
-  return { success: true, host: parseHost(res.data.host) }
+  return { success: true, data: parseHost(res.data.host) }
 }
 
 /**
