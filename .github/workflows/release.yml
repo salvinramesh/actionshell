@@ -83,6 +83,15 @@ jobs:
       - name: Install Node dependencies
         run: npm install --legacy-peer-deps --ignore-scripts --include=optional
 
+      - name: Install Windows Rollup native binary
+        shell: bash
+        run: |
+          # Rollup ships platform-specific binaries as optional deps.
+          # npm install from a Linux-generated lockfile may skip the Windows one.
+          npm install @rollup/rollup-win32-x64-msvc --no-save --legacy-peer-deps 2>/dev/null || true
+          # Verify it's there
+          ls node_modules/@rollup/ || true
+
       - name: Get Electron version
         id: electron_ver
         shell: bash
