@@ -78,7 +78,27 @@ export default function ConnectionForm() {
       addNotification({ type:'success', title: editing ? 'Host updated' : 'Host added', message: form.name })
       setShowConnectionForm(false)
     } catch (err: any) { setError(err.message) }
-    finally { setLoading(false) }
+  }
+
+  const handleDelete = async () => {
+    if (!editing) return
+    if (confirm(`Are you sure you want to delete "${editing.name}"?`)) {
+      setLoading(true); setError('')
+      try {
+        const res = await window.actionshell.connections.delete(editing.id, session!.userId)
+        if (res.success) {
+          await loadHosts(session!.userId, session!.role)
+          addNotification({ type: 'success', title: 'Host deleted', message: editing.name })
+          setShowConnectionForm(false)
+        } else {
+          setError(res.error || 'Failed to delete host')
+        }
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
   }
 
   const tabs = [
@@ -227,11 +247,18 @@ export default function ConnectionForm() {
             {error && <p className="form-error" style={{marginTop:'12px'}}>{error}</p>}
           </div>
 
-          <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={() => setShowConnectionForm(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? <><span className="spinner"/>Saving...</> : (editing ? 'Update Host' : 'Add Host')}
-            </button>
+          <div className="modal-footer" style={{ display: 'flex', justifyContent: editing ? 'space-between' : 'flex-end', alignItems: 'center' }}>
+            {editing && (
+              <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={loading}>
+                Delete Host
+              </button>
+            )}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setShowConnectionForm(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? <><span className="spinner"/>Saving...</> : (editing ? 'Update Host' : 'Add Host')}
+              </button>
+            </div>
           </div>
         </form>
       </div>

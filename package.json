@@ -1,6 +1,6 @@
 {
   "name": "actionshell",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Enterprise SSH & SFTP Management Platform",
   "main": "./out/main/index.js",
   "author": {

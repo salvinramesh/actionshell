@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../store/auth.store'
-import styles from './Auth.module.css'
+import './Auth.module.css'
 
 interface Props { onComplete: () => void }
 

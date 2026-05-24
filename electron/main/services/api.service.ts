@@ -3,7 +3,7 @@
  * All desktop ↔ server communication goes through here.
  */
 
-const API_BASE = 'https://actionshell.actionfi.com/api'
+const API_BASE = process.env.MAIN_VITE_SYNC_SERVER_URL || process.env.VITE_SYNC_SERVER_URL || 'https://actionshell.actionfi.com/api'
 
 let authToken: string | null = null
 

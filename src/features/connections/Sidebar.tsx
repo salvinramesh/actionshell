@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Server, Star, FolderOpen, ChevronDown, ChevronRight, Plus, Search, PanelLeftClose, PanelLeftOpen, Terminal, Folder, FolderPlus, MoreVertical, Zap } from 'lucide-react'
+import { Server, Star, FolderOpen, ChevronDown, ChevronRight, Plus, Search, PanelLeftClose, PanelLeftOpen, Terminal, Folder, FolderPlus, MoreVertical, Zap, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import { useConnectionsStore } from '../../store/connections.store'
@@ -224,6 +224,42 @@ function HostGroup({ label, groupId, hosts, expanded, onToggle, onConnect, selec
 
 function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: boolean; onConnect:(h:SSHHost)=>void }) {
   const { setShowConnectionForm } = useUIStore()
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (confirm(`Are you sure you want to delete "${host.name}"?`)) {
+      try {
+        const { session } = useAuthStore.getState()
+        if (!session) return
+        const res = await window.actionshell.connections.delete(host.id, session.userId)
+        if (res.success) {
+          const { loadHosts } = useConnectionsStore.getState()
+          await loadHosts(session.userId, session.role)
+          const { addNotification } = useUIStore.getState()
+          addNotification({
+            type: 'success',
+            title: 'Host deleted',
+            message: host.name
+          })
+        } else {
+          const { addNotification } = useUIStore.getState()
+          addNotification({
+            type: 'error',
+            title: 'Delete failed',
+            message: res.error || 'Failed to delete connection'
+          })
+        }
+      } catch (err: any) {
+        const { addNotification } = useUIStore.getState()
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: err.message || 'An error occurred'
+        })
+      }
+    }
+  }
+
   return (
     <div className={`host-card ${selected?'active':''}`} onClick={() => onConnect(host)}>
       <div className={`status-dot ${host.status || 'disconnected'}`} />
@@ -237,6 +273,10 @@ function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: bool
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
+        </button>
+        <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px',color:'var(--color-danger-500)'}}
+          onClick={handleDelete} title="Delete">
+          <Trash2 size={11} />
         </button>
       </div>
     </div>
