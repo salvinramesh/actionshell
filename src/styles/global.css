@@ -95,6 +95,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radius-xl); width: 100%; max-width: 520px;
   box-shadow: var(--shadow-xl);
   max-height: 90vh; display: flex; flex-direction: column;
+  overflow: hidden;
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;

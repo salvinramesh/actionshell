@@ -239,7 +239,7 @@ export async function createUser(data: {
  */
 export async function updateUser(
   targetId: string,
-  data: Partial<{ name: string; role: UserRole; isActive: boolean; isLocked: boolean }>,
+  data: Partial<{ name: string; role: UserRole; isActive: boolean; isLocked: boolean; password?: string }>,
   _actorId: string
 ): Promise<{ success: boolean; error?: string }> {
   const body: any = {}
@@ -247,6 +247,7 @@ export async function updateUser(
   if (data.role !== undefined) body.role = data.role
   if (data.isActive !== undefined) body.status = data.isActive ? 'active' : 'disabled'
   if (data.isLocked !== undefined) body.status = data.isLocked ? 'locked' : 'active'
+  if (data.password !== undefined) body.password = data.password
 
   const res = await api.patch<{ error?: string }>(`/users/${targetId}`, body)
   return res.ok ? { success: true } : { success: false, error: (res.data as any).error }

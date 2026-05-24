@@ -9,6 +9,8 @@ import AdminDashboard from '../admin/AdminDashboard'
 import SettingsPanel from '../settings/SettingsPanel'
 import ConnectionForm from '../connections/ConnectionForm'
 import SnippetPalette from '../snippets/SnippetPalette'
+import { useTerminalStore } from '../../store/terminal.store'
+import { v4 as uuidv4 } from 'uuid'
 import NotificationStack from '../ui/NotificationStack'
 import './Layout.css'
 
@@ -30,6 +32,23 @@ export default function MainLayout() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
         e.preventDefault()
         useUIStore.getState().setShowSnippetPalette(true)
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+        e.preventDefault()
+        const sessionId = uuidv4()
+        useTerminalStore.getState().addTab({
+          sessionId,
+          title: 'Local Shell',
+          type: 'local',
+          isLocal: true,
+          status: 'connecting'
+        })
+        useUIStore.getState().setView('terminal')
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+        const { activeTabId, removeTab } = useTerminalStore.getState()
+        if (activeTabId) {
+          e.preventDefault()
+          removeTab(activeTabId)
+        }
       }
     }
     window.addEventListener('keydown', handler)

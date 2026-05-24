@@ -154,7 +154,7 @@ export default function ConnectionForm() {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <div className="modal-body">
             {tab === 'general' && (
               <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>

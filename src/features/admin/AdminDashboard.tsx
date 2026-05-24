@@ -3,7 +3,7 @@ import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import { useConnectionsStore } from '../../store/connections.store'
 import type { User, AuditLog, ActiveSession } from '../../../shared/types'
-import { Users, Server, Activity, Shield, BarChart2, Clock, LogOut, Lock, Unlock, Trash2, Plus, CheckCircle, XCircle } from 'lucide-react'
+import { Users, Server, Activity, Shield, BarChart2, Clock, LogOut, Lock, Unlock, Trash2, Plus, CheckCircle, XCircle, Pencil } from 'lucide-react'
 import './Admin.css'
 
 type AdminTab = 'overview' | 'users' | 'servers' | 'audit' | 'sessions'
@@ -15,6 +15,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([])
   const [audit, setAudit] = useState<AuditLog[]>([])
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
+  const [editingUser, setEditingUser] = useState<User | null>(null)
 
   useEffect(() => {
     window.actionshell.admin.stats().then(r => { if(r.success) setStats(r.data) })
@@ -103,6 +104,9 @@ export default function AdminDashboard() {
                     <td style={{fontSize:'var(--text-xs)',color:'var(--color-text-500)'}}>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : '—'}</td>
                     <td>
                       <div style={{display:'flex',gap:'4px'}}>
+                        <button className="btn btn-icon btn-sm" onClick={() => setEditingUser(u)} title="Edit User">
+                          <Pencil size={12}/>
+                        </button>
                         {u.id !== session?.userId && (
                           <>
                             <button className="btn btn-icon btn-sm" onClick={() => toggleUserLock(u)} title={u.isLocked?'Unlock':'Lock'}>
@@ -119,6 +123,16 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+            {editingUser && (
+              <EditUserModal
+                user={editingUser}
+                onClose={() => setEditingUser(null)}
+                onUpdated={() => {
+                  setEditingUser(null)
+                  loadUsers()
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -216,7 +230,7 @@ function AddUserModal({ onCreated }: { onCreated: () => void }) {
         <div className="modal-overlay" onClick={() => setShow(false)}>
           <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()}>
             <div className="modal-header"><h3 className="modal-title">Add User</h3></div>
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <div className="modal-body" style={{display:'flex',flexDirection:'column',gap:'16px'}}>
                 <div className="form-group"><label className="form-label">Name</label><input className="form-input" required value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
                 <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" required value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/></div>
@@ -237,6 +251,65 @@ function AddUserModal({ onCreated }: { onCreated: () => void }) {
         </div>
       )}
     </>
+  )
+}
+
+function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () => void; onUpdated: () => void }) {
+  const { session } = useAuthStore()
+  const [form, setForm] = useState({ name: user.name, email: user.email, password: '', role: user.role })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setError('')
+    const updateData: any = { name: form.name, role: form.role }
+    if (form.password) updateData.password = form.password
+    const res = await window.actionshell.adminUsers.update(user.id, updateData, session!.userId)
+    if (res.success) { onUpdated() }
+    else setError(res.error || 'Failed')
+    setLoading(false)
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+        <div className="modal-header">
+          <h3 className="modal-title">Edit User</h3>
+          <button className="btn btn-icon" onClick={onClose}><XCircle size={16}/></button>
+        </div>
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Name</label>
+              <input className="form-input" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" disabled value={form.email} style={{ opacity: 0.6, cursor: 'not-allowed' }}/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password (leave blank to keep current)</label>
+              <input className="form-input" type="password" placeholder="Change password (optional)" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Role</label>
+              <select className="form-input form-select" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as any }))}>
+                <option value="admin">Admin</option>
+                <option value="standard">Standard User</option>
+                <option value="readonly">Read-only</option>
+              </select>
+            </div>
+            {error && <p className="form-error">{error}</p>}
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? <span className="spinner"/> : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }
 
@@ -393,7 +466,7 @@ function ServersPermissionsTab() {
               <h3 className="modal-title">Grant Server Access</h3>
               <button className="btn btn-icon" onClick={() => setShowGrantModal(false)}><XCircle size={16}/></button>
             </div>
-            <form onSubmit={handleGrantSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            <form onSubmit={handleGrantSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Select User</label>
