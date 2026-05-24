@@ -61,7 +61,7 @@ export default function TitleBar() {
         </button>
         {session && (
           <div className="user-avatar" style={{width:'22px',height:'22px',fontSize:'9px'}}>
-            {session.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
+            {session.name ? session.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'AS'}
           </div>
         )}
       </div>
