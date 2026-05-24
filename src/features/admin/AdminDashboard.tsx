@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import { useConnectionsStore } from '../../store/connections.store'
@@ -226,7 +227,7 @@ function AddUserModal({ onCreated }: { onCreated: () => void }) {
   return (
     <>
       <button className="btn btn-primary btn-sm" onClick={() => setShow(true)}><Plus size={13}/> Add User</button>
-      {show && (
+      {show && createPortal(
         <div className="modal-overlay" onClick={() => setShow(false)}>
           <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()}>
             <div className="modal-header"><h3 className="modal-title">Add User</h3></div>
@@ -248,7 +249,8 @@ function AddUserModal({ onCreated }: { onCreated: () => void }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
@@ -270,7 +272,7 @@ function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () =
     setLoading(false)
   }
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
         <div className="modal-header">
@@ -309,7 +311,8 @@ function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () =
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -459,7 +462,7 @@ function ServersPermissionsTab() {
         </div>
       </div>
 
-      {showGrantModal && (
+      {showGrantModal && createPortal(
         <div className="modal-overlay" onClick={() => setShowGrantModal(false)}>
           <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div className="modal-header">
@@ -473,7 +476,7 @@ function ServersPermissionsTab() {
                   {users.length === 0 ? (
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-500)' }}>
                       No standard or read-only users found. All admins have immediate access.
-                    </p>
+                      </p>
                   ) : (
                     <select className="form-input form-select" value={grantForm.userId}
                       onChange={e => setGrantForm(f => ({ ...f, userId: e.target.value }))}>
@@ -527,7 +530,8 @@ function ServersPermissionsTab() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
