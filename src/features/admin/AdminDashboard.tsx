@@ -216,7 +216,7 @@ function AddUserModal({ onCreated }: { onCreated: () => void }) {
         <div className="modal-overlay" onClick={() => setShow(false)}>
           <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()}>
             <div className="modal-header"><h3 className="modal-title">Add User</h3></div>
-            <form onSubmit={submit}>
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
               <div className="modal-body" style={{display:'flex',flexDirection:'column',gap:'16px'}}>
                 <div className="form-group"><label className="form-label">Name</label><input className="form-input" required value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
                 <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" required value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/></div>
@@ -393,7 +393,7 @@ function ServersPermissionsTab() {
               <h3 className="modal-title">Grant Server Access</h3>
               <button className="btn btn-icon" onClick={() => setShowGrantModal(false)}><XCircle size={16}/></button>
             </div>
-            <form onSubmit={handleGrantSubmit}>
+            <form onSubmit={handleGrantSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">Select User</label>

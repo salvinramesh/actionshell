@@ -8,6 +8,7 @@ import { registerConnectionsIPC } from './ipc/connections.ipc'
 import { registerTerminalIPC } from './ipc/terminal.ipc'
 import { registerSFTPIPC } from './ipc/sftp.ipc'
 import { registerAdminIPC } from './ipc/admin.ipc'
+import { registerSavedKeysIPC } from './ipc/savedKeys.ipc'
 
 // Disable hardware acceleration on Linux for stability
 if (process.platform === 'linux') {
@@ -75,6 +76,7 @@ app.whenReady().then(async () => {
   registerTerminalIPC(mainWindow)
   registerSFTPIPC(mainWindow)
   registerAdminIPC(mainWindow)
+  registerSavedKeysIPC()
 
   // Window control IPC
   const { ipcMain } = await import('electron')

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Server, Star, FolderOpen, ChevronDown, ChevronRight, Plus, Search, PanelLeftClose, PanelLeftOpen, Terminal, Folder, FolderPlus, MoreVertical, Zap, Trash2 } from 'lucide-react'
+import { Server, Star, FolderOpen, ChevronDown, ChevronRight, Plus, Search, PanelLeftClose, PanelLeftOpen, Terminal, Folder, FolderPlus, MoreVertical, Zap, Trash2, Pencil } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import { useConnectionsStore } from '../../store/connections.store'
@@ -268,11 +268,9 @@ function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: bool
         <div className="host-card-meta">{host.username ? `${host.username}@` : ''}{host.hostname}:{host.port}</div>
       </div>
       <div className="host-card-actions">
-        <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px'}}
+        <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px',color:'var(--color-text-400)'}}
           onClick={e => { e.stopPropagation(); setShowConnectionForm(true, host.id) }} title="Edit">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
+          <Pencil size={11} />
         </button>
         <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px',color:'var(--color-danger-500)'}}
           onClick={handleDelete} title="Delete">

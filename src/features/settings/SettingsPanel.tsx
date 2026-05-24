@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useUIStore } from '../../store/ui.store'
 import { useAuthStore } from '../../store/auth.store'
-import { Moon, Sun, Monitor, Terminal, Shield, Bell, Key, Lock } from 'lucide-react'
+import { Moon, Sun, Monitor, Terminal, Shield, Key, Lock, Zap } from 'lucide-react'
 
 export default function SettingsPanel() {
   const { theme, setTheme } = useUIStore()
   const { session, logout } = useAuthStore()
-  const [tab, setTab] = useState<'appearance'|'terminal'|'security'|'snippets'>('appearance')
+  const [tab, setTab] = useState<'appearance'|'terminal'|'keys'|'snippets'|'security'>('appearance')
   const [termFontSize, setTermFontSize] = useState(13)
   const [termFont, setTermFont] = useState("'JetBrains Mono', monospace")
   const [autoLock, setAutoLock] = useState(30)
@@ -14,8 +14,9 @@ export default function SettingsPanel() {
   const tabs = [
     { id: 'appearance', label: 'Appearance', icon: <Monitor size={15}/> },
     { id: 'terminal', label: 'Terminal', icon: <Terminal size={15}/> },
+    { id: 'keys', label: 'SSH Keys', icon: <Key size={15}/> },
+    { id: 'snippets', label: 'Snippets', icon: <Zap size={15}/> },
     { id: 'security', label: 'Security', icon: <Shield size={15}/> },
-    { id: 'snippets', label: 'Snippets', icon: <Key size={15}/> },
   ]
 
   return (
@@ -81,6 +82,8 @@ export default function SettingsPanel() {
           </div>
         )}
 
+        {tab === 'keys' && <SSHKeyManager />}
+
         {tab === 'security' && (
           <div className="animate-fadeIn" style={{maxWidth:'480px'}}>
             <h2 style={{fontSize:'var(--text-xl)',fontWeight:'var(--weight-bold)',color:'var(--color-text-100)',marginBottom:'24px'}}>Security</h2>
@@ -108,6 +111,105 @@ export default function SettingsPanel() {
         )}
 
         {tab === 'snippets' && <SnippetManager />}
+      </div>
+    </div>
+  )
+}
+
+function SSHKeyManager() {
+  const { addNotification } = useUIStore()
+  const [keys, setKeys] = useState<any[]>([])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ name: '', key: '', passphrase: '' })
+  const [loading, setLoading] = useState(false)
+
+  const load = () => {
+    window.actionshell.savedKeys.list().then(r => {
+      if (r.success) setKeys(r.data as any[])
+    })
+  }
+
+  useState(() => { load() })
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.name || !form.key) return
+    setLoading(true)
+    const res = await window.actionshell.savedKeys.add(form.name, form.key, form.passphrase || undefined)
+    setLoading(false)
+    if (res.success) {
+      addNotification({ type: 'success', title: 'SSH key saved', message: form.name })
+      setShowForm(false)
+      setForm({ name: '', key: '', passphrase: '' })
+      load()
+    } else {
+      alert(res.error || 'Failed to save key')
+    }
+  }
+
+  const del = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete the saved key "${name}"?`)) return
+    const res = await window.actionshell.savedKeys.delete(id)
+    if (res.success) {
+      addNotification({ type: 'success', title: 'SSH key deleted', message: name })
+      load()
+    }
+  }
+
+  return (
+    <div className="animate-fadeIn" style={{ maxWidth: '600px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-100)' }}>Saved SSH Keys</h2>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>+ Add SSH Key</button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={save} style={{ background: 'var(--color-base-750)', border: '1px solid var(--color-border-default)', borderRadius: 'var(--radius-lg)', padding: '20px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="form-group">
+            <label className="form-label">Key Name *</label>
+            <input className="form-input" required placeholder="e.g. Production Bastion Key" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}/>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Private Key Content *</label>
+            <textarea className="form-input form-textarea" required rows={6} placeholder="Paste your private key here (-----BEGIN ... KEY-----)" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))}/>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Key Passphrase (optional)</label>
+            <input className="form-input" type="password" placeholder="Key passphrase" value={form.passphrase} onChange={e => setForm(f => ({ ...f, passphrase: e.target.value }))}/>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={loading}>
+              {loading ? 'Saving...' : 'Save Key'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {keys.map(k => (
+          <div key={k.id} style={{ background: 'var(--color-base-750)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-200)', fontSize: 'var(--text-sm)' }}>{k.name}</div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-500)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
+                🔒 Encrypted with safeStorage (OS Keychain)
+              </div>
+            </div>
+            <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-danger-500)', flexShrink: 0 }} onClick={() => del(k.id, k.name)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          </div>
+        ))}
+        {keys.length === 0 && !showForm && (
+          <div className="empty-state" style={{ padding: '40px' }}>
+            <Key size={28} className="empty-state-icon"/>
+            <p className="empty-state-title">No saved SSH keys yet</p>
+            <p className="empty-state-desc">Save your SSH private keys here to reuse them when creating connections</p>
+          </div>
+        )}
       </div>
     </div>
   )

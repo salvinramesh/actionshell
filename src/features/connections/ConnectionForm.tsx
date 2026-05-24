@@ -37,6 +37,16 @@ export default function ConnectionForm() {
     credType: (editing?.authType === 'key' ? 'openssh' : 'password') as CredentialType,
   })
 
+  const [savedKeys, setSavedKeys] = useState<any[]>([])
+
+  useEffect(() => {
+    window.actionshell.savedKeys.list().then(res => {
+      if (res.success) {
+        setSavedKeys(res.data as any[])
+      }
+    })
+  }, [])
+
   useEffect(() => {
     async function loadCredentialDetails() {
       if (editingHostId) {
@@ -144,7 +154,7 @@ export default function ConnectionForm() {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
           <div className="modal-body">
             {tab === 'general' && (
               <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
@@ -225,6 +235,32 @@ export default function ConnectionForm() {
                         <option value="ppk">PuTTY PPK</option>
                       </select>
                     </div>
+                    {savedKeys.length > 0 && (
+                      <div className="form-group">
+                        <label className="form-label">Use Saved Key</label>
+                        <select className="form-input form-select" defaultValue=""
+                          onChange={e => {
+                            const val = e.target.value
+                            if (val) {
+                              const selectedKey = savedKeys.find(k => k.id === val)
+                              if (selectedKey) {
+                                setForm(f => ({
+                                  ...f,
+                                  privateKey: selectedKey.key,
+                                  passphrase: selectedKey.passphrase || '',
+                                  credentialLabel: selectedKey.name
+                                }))
+                              }
+                            }
+                          }}>
+                          <option value="">-- Select a saved key --</option>
+                          {savedKeys.map(k => (
+                            <option key={k.id} value={k.id}>{k.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     <div className="form-group">
                       <label className="form-label">Private Key Content</label>
                       <textarea className="form-input form-textarea" rows={6} placeholder="Paste your private key here (-----BEGIN ... KEY-----)" value={form.privateKey} onChange={e=>set('privateKey',e.target.value)} style={{fontFamily:'var(--font-mono)',fontSize:'11px'}}/>

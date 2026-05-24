@@ -46,11 +46,17 @@ const api = {
     groupsDelete: (id: string) => ipcRenderer.invoke('connections:groups:delete', { id }),
   },
   
-  // Credentials
   credentials: {
     add: (data: any, userId: string) => ipcRenderer.invoke('credentials:add', { data, userId }),
     list: (hostId: string) => ipcRenderer.invoke('credentials:list', { hostId }),
     delete: (id: string, userId: string) => ipcRenderer.invoke('credentials:delete', { id, userId }),
+  },
+
+  // Saved Keys (local vault)
+  savedKeys: {
+    list: () => ipcRenderer.invoke('saved-keys:list'),
+    add: (name: string, key: string, passphrase?: string) => ipcRenderer.invoke('saved-keys:add', { name, key, passphrase }),
+    delete: (id: string) => ipcRenderer.invoke('saved-keys:delete', { id }),
   },
   
   // Terminal
