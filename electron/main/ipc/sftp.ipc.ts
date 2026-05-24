@@ -118,4 +118,33 @@ export function registerSFTPIPC(mainWindow: BrowserWindow) {
     if (result.canceled) return { success: false, error: 'Cancelled' }
     return { success: true, data: result.filePaths[0] }
   })
+
+  // Read remote text file to local memory
+  ipcMain.handle('sftp:read-text-file', async (_, { sessionId, remotePath }): Promise<IpcResponse> => {
+    try {
+      const fs = await import('fs')
+      const tempPath = path.join(app.getPath('temp'), `actionshell-${Date.now()}-${path.basename(remotePath)}`)
+      await downloadFile(sessionId, remotePath, tempPath)
+      const data = fs.readFileSync(tempPath, 'utf8')
+      try { fs.unlinkSync(tempPath) } catch {}
+      return { success: true, data }
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
+  // Write local memory text back to remote file
+  ipcMain.handle('sftp:write-text-file', async (_, { sessionId, remotePath, content }): Promise<IpcResponse> => {
+    try {
+      const fs = await import('fs')
+      const tempPath = path.join(app.getPath('temp'), `actionshell-${Date.now()}-${path.basename(remotePath)}`)
+      fs.writeFileSync(tempPath, content, 'utf8')
+      await uploadFile(sessionId, tempPath, remotePath)
+      try { fs.unlinkSync(tempPath) } catch {}
+      return { success: true }
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message }
+    }
+  })
 }
+

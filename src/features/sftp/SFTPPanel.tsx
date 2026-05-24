@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Folder, FolderOpen, File, Upload, Download, Plus, Trash2, Edit2, RefreshCw, ChevronRight, ArrowUp, Home, Eye, EyeOff } from 'lucide-react'
+import { Folder, FolderOpen, File, Upload, Download, Plus, Trash2, Edit2, RefreshCw, ChevronRight, ArrowUp, Home, Eye, EyeOff, FileText } from 'lucide-react'
 import type { SFTPEntry } from '../../../shared/types'
+import SFTPEditorModal from './SFTPEditorModal'
 import './SFTP.css'
 
 interface Props { hostId: string; sessionId: string }
@@ -16,6 +17,33 @@ export default function SFTPPanel({ hostId, sessionId }: Props) {
   const [renaming, setRenaming] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [transfers, setTransfers] = useState<{ path: string; pct: number }[]>([])
+  const [editingFile, setEditingFile] = useState<SFTPEntry | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragOver(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    if (!e.dataTransfer || !e.dataTransfer.files) return
+
+    const files = Array.from(e.dataTransfer.files)
+    for (const file of files) {
+      const localPath = (file as any).path
+      if (!localPath) continue
+      const name = file.name
+      const remotePath = path.endsWith('/') ? path + name : path + '/' + name
+      await window.actionshell.sftp.upload(sessionId, localPath, remotePath)
+    }
+    loadDir(path)
+  }
 
   useEffect(() => {
     connect()
@@ -166,7 +194,12 @@ export default function SFTPPanel({ hostId, sessionId }: Props) {
       ) : error ? (
         <div className="sftp-panel-center"><p style={{color:'var(--color-danger-500)'}}>{error}</p></div>
       ) : (
-        <div className="sftp-file-list scrollable">
+        <div
+          className={`sftp-file-list scrollable ${isDragOver ? 'drag-over' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           {displayed.map(entry => (
             <div key={entry.path}
               className={`sftp-file-row ${selected.has(entry.path) ? 'selected' : ''}`}
@@ -191,10 +224,16 @@ export default function SFTPPanel({ hostId, sessionId }: Props) {
               <div className="sftp-file-meta">{entry.type==='file' ? formatSize(entry.size) : ''}</div>
               <div className="sftp-file-actions">
                 {entry.type === 'file' && (
-                  <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px'}}
-                    onClick={e => { e.stopPropagation(); download(entry) }} title="Download">
-                    <Download size={11}/>
-                  </button>
+                  <>
+                    <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px'}}
+                      onClick={e => { e.stopPropagation(); setEditingFile(entry) }} title="Edit File">
+                      <FileText size={11}/>
+                    </button>
+                    <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px'}}
+                      onClick={e => { e.stopPropagation(); download(entry) }} title="Download">
+                      <Download size={11}/>
+                    </button>
+                  </>
                 )}
                 <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px'}}
                   onClick={e => { e.stopPropagation(); startRename(entry) }} title="Rename">
@@ -214,6 +253,14 @@ export default function SFTPPanel({ hostId, sessionId }: Props) {
             </div>
           )}
         </div>
+      )}
+      {editingFile && (
+        <SFTPEditorModal
+          sessionId={sessionId}
+          remotePath={editingFile.path}
+          onClose={() => setEditingFile(null)}
+          onSave={() => loadDir(path)}
+        />
       )}
     </div>
   )

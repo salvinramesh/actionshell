@@ -17,13 +17,14 @@ export interface SSHSession {
 
 // Active SSH sessions
 const sessions = new Map<string, SSHSession>()
+const recordings = new Map<string, { time: number; data: string }[]>()
 
 export const sshEvents = new EventEmitter()
 
 /**
  * Build SSH connect config from host + credentials (fetched from sync server)
  */
-async function buildConnectConfig(hostId: string): Promise<ConnectConfig & { hostName: string }> {
+export async function buildConnectConfig(hostId: string): Promise<ConnectConfig & { hostName: string }> {
   // Fetch host info from server
   const hostsRes = await api.get<{ hosts: any[] }>('/hosts')
   if (!hostsRes.ok) throw new Error('Failed to fetch hosts')
@@ -97,6 +98,7 @@ export async function spawnSSHSession(
       
       client.on('ready', () => {
         session.status = 'connected'
+        recordings.set(sessionId, [])
         
         client.shell({ term: 'xterm-256color', cols, rows }, (err, stream) => {
           if (err) {
@@ -109,17 +111,30 @@ export async function spawnSSHSession(
           session.stream = stream
           
           stream.on('data', (data: Buffer) => {
-            sshEvents.emit('terminal:output', { sessionId, data: data.toString() })
+            const text = data.toString()
+            const rec = recordings.get(sessionId)
+            if (rec) rec.push({ time: Date.now(), data: text })
+            sshEvents.emit('terminal:output', { sessionId, data: text })
           })
           
           stream.stderr.on('data', (data: Buffer) => {
-            sshEvents.emit('terminal:output', { sessionId, data: data.toString() })
+            const text = data.toString()
+            const rec = recordings.get(sessionId)
+            if (rec) rec.push({ time: Date.now(), data: text })
+            sshEvents.emit('terminal:output', { sessionId, data: text })
           })
           
           stream.on('close', () => {
             session.status = 'closed'
             sessions.delete(sessionId)
             sshEvents.emit('terminal:close', { sessionId })
+            
+            // Upload the session recording to sync server
+            const rec = recordings.get(sessionId)
+            if (rec && rec.length > 0) {
+              api.post(`/audit/recordings/${sessionId}`, { recording: rec }).catch(() => {})
+              recordings.delete(sessionId)
+            }
           })
           
           // Audit log via server
@@ -249,3 +264,13 @@ export async function testConnection(hostId: string): Promise<{ success: boolean
     }
   })
 }
+
+export function getSSHClientForHost(hostId: string): Client | undefined {
+  for (const s of sessions.values()) {
+    if (s.hostId === hostId && s.status === 'connected') {
+      return s.client
+    }
+  }
+  return undefined
+}
+

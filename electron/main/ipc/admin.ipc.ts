@@ -15,6 +15,19 @@ export function registerAdminIPC(mainWindow: BrowserWindow) {
     return { success: true, data: sessions }
   })
 
+  ipcMain.handle('admin:sessions:recording', async (_, { sessionId }): Promise<IpcResponse> => {
+    try {
+      const res = await api.get<{ data: any }>(`/audit/recordings/${sessionId}`)
+      if (res.ok) {
+        return { success: true, data: res.data.data }
+      } else {
+        return { success: false, error: (res.data as any).error || 'Failed to fetch recording' }
+      }
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
   ipcMain.handle('admin:stats', async (): Promise<IpcResponse> => {
     // Fetch stats from server
     const usersRes = await api.get<{ users: any[] }>('/users')

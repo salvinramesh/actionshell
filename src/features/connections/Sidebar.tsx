@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Server, Star, FolderOpen, ChevronDown, ChevronRight, Plus, Search, PanelLeftClose, PanelLeftOpen, Terminal, Folder, FolderPlus, MoreVertical, Zap, Trash2, Pencil } from 'lucide-react'
+import { Server, Star, FolderOpen, ChevronDown, ChevronRight, Plus, Search, PanelLeftClose, PanelLeftOpen, Terminal, Folder, FolderPlus, MoreVertical, Zap, Trash2, Pencil, AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import { useConnectionsStore } from '../../store/connections.store'
@@ -260,11 +260,20 @@ function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: bool
     }
   }
 
+  const isOld = Date.now() - new Date(host.createdAt).getTime() > 90 * 24 * 60 * 60 * 1000
+
   return (
     <div className={`host-card ${selected?'active':''}`} onClick={() => onConnect(host)}>
       <div className={`status-dot ${host.status || 'disconnected'}`} />
       <div className="host-card-info">
-        <div className="host-card-name">{host.name}</div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+          <div className="host-card-name">{host.name}</div>
+          {isOld && (
+            <span style={{fontSize:'8px',fontWeight:'bold',color:'#ebcb8b',background:'rgba(235, 203, 139, 0.15)',padding:'1px 4px',borderRadius:'3px',display:'flex',alignItems:'center',gap:'2px',flexShrink:0}} title="Connection is older than 90 days — rotate credentials">
+              <AlertTriangle size={8}/> ROTATE
+            </span>
+          )}
+        </div>
         <div className="host-card-meta">{host.username ? `${host.username}@` : ''}{host.hostname}:{host.port}</div>
       </div>
       <div className="host-card-actions">

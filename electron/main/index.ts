@@ -3,12 +3,14 @@ import path from 'path'
 import { closeAllSessions } from './services/ssh.service'
 import { closeAllSFTPSessions } from './services/sftp.service'
 import { killAllPTY } from './services/pty.service'
+import { closeAllTunnels } from './services/tunnels.service'
 import { registerAuthIPC } from './ipc/auth.ipc'
 import { registerConnectionsIPC } from './ipc/connections.ipc'
 import { registerTerminalIPC } from './ipc/terminal.ipc'
 import { registerSFTPIPC } from './ipc/sftp.ipc'
 import { registerAdminIPC } from './ipc/admin.ipc'
 import { registerSavedKeysIPC } from './ipc/savedKeys.ipc'
+import { registerTunnelsIPC } from './ipc/tunnels.ipc'
 
 // Disable hardware acceleration on Linux for stability
 if (process.platform === 'linux') {

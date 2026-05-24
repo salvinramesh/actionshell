@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Minus, Maximize2, X, Terminal, Settings, LayoutDashboard, Lock, Moon, Sun } from 'lucide-react'
+import { Minus, Maximize2, X, Terminal, Settings, LayoutDashboard, Lock, Moon, Sun, Network } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import './Layout.css'
@@ -45,6 +45,11 @@ export default function TitleBar() {
             <LayoutDashboard size={14} />
           </button>
         )}
+        <button className={`titlebar-btn ${currentView==='tunnels'?'active':''}`}
+          style={currentView==='tunnels'?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
+          onClick={() => setView('tunnels')} title="Port Forwarding">
+          <Network size={14} />
+        </button>
         <button className="titlebar-btn" onClick={() => setView('settings')} title="Settings">
           <Settings size={14} />
         </button>

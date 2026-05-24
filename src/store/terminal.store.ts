@@ -19,17 +19,20 @@ export interface TerminalTab {
 interface TerminalStore {
   tabs: TerminalTab[]
   activeTabId: string | null
+  broadcastActive: boolean
   addTab: (tab: Omit<TerminalTab, 'id'>) => string
   removeTab: (id: string) => void
   setActiveTab: (id: string) => void
   updateTab: (id: string, data: Partial<TerminalTab>) => void
   toggleSftp: (id: string) => void
   getActiveTab: () => TerminalTab | null
+  setBroadcastActive: (v: boolean) => void
 }
 
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
   tabs: [],
   activeTabId: null,
+  broadcastActive: false,
 
   addTab: (tab) => {
     const id = uuidv4()
@@ -62,5 +65,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   getActiveTab: () => {
     const { tabs, activeTabId } = get()
     return tabs.find(t => t.id === activeTabId) ?? null
-  }
+  },
+
+  setBroadcastActive: (broadcastActive) => set({ broadcastActive }),
 }))

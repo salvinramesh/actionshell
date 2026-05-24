@@ -1,15 +1,90 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useUIStore } from '../../store/ui.store'
 import { useAuthStore } from '../../store/auth.store'
 import { Moon, Sun, Monitor, Terminal, Shield, Key, Lock, Zap } from 'lucide-react'
+import QRCode from 'qrcode'
 
 export default function SettingsPanel() {
-  const { theme, setTheme } = useUIStore()
+  const {
+    theme, setTheme,
+    termTheme, setTermTheme,
+    termFontSize, setTermFontSize,
+    termFontFamily, setTermFontFamily,
+    logHighlightActive, setLogHighlightActive
+  } = useUIStore()
   const { session, logout } = useAuthStore()
   const [tab, setTab] = useState<'appearance'|'terminal'|'keys'|'snippets'|'security'>('appearance')
-  const [termFontSize, setTermFontSize] = useState(13)
-  const [termFont, setTermFont] = useState("'JetBrains Mono', monospace")
   const [autoLock, setAutoLock] = useState(30)
+  
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaSetupData, setMfaSetupData] = useState<{ secret: string; qrUrl: string } | null>(null)
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaError, setMfaError] = useState('')
+  const [mfaSuccess, setMfaSuccess] = useState('')
+
+  useEffect(() => {
+    if (tab === 'security') {
+      window.actionshell.auth.me().then(res => {
+        if (res.success && res.data) {
+          const user = (res.data as any).user
+          if (user) {
+            setMfaEnabled(Boolean(user.mfaEnabled))
+          }
+        }
+      })
+    }
+  }, [tab])
+
+  const handleSetupMfa = async () => {
+    setMfaError('')
+    try {
+      const res = await window.actionshell.auth.mfaSetup()
+      if (res.success && res.data) {
+        const qrUrl = await QRCode.toDataURL(res.data.otpauthUrl)
+        setMfaSetupData({ secret: res.data.secret, qrUrl })
+      } else {
+        setMfaError(res.error || 'Failed to initialize setup')
+      }
+    } catch (err: any) {
+      setMfaError(err.message || 'Failed to setup MFA')
+    }
+  }
+
+  const handleEnableMfa = async () => {
+    setMfaError('')
+    if (!mfaSetupData || !mfaCode) return
+    try {
+      const res = await window.actionshell.auth.mfaEnable(mfaSetupData.secret, mfaCode)
+      if (res.success) {
+        setMfaEnabled(true)
+        setMfaSetupData(null)
+        setMfaCode('')
+        setMfaSuccess('MFA enabled successfully!')
+        setTimeout(() => setMfaSuccess(''), 4000)
+      } else {
+        setMfaError(res.error || 'Invalid verification code')
+      }
+    } catch (err: any) {
+      setMfaError(err.message || 'Failed to enable MFA')
+    }
+  }
+
+  const handleDisableMfa = async () => {
+    if (!confirm('Are you sure you want to disable Multi-Factor Authentication?')) return
+    setMfaError('')
+    try {
+      const res = await window.actionshell.auth.mfaDisable()
+      if (res.success) {
+        setMfaEnabled(false)
+        setMfaSuccess('MFA disabled successfully.')
+        setTimeout(() => setMfaSuccess(''), 4000)
+      } else {
+        setMfaError(res.error || 'Failed to disable MFA')
+      }
+    } catch (err: any) {
+      setMfaError(err.message || 'Failed to disable MFA')
+    }
+  }
 
   const tabs = [
     { id: 'appearance', label: 'Appearance', icon: <Monitor size={15}/> },
@@ -59,6 +134,16 @@ export default function SettingsPanel() {
             <h2 style={{fontSize:'var(--text-xl)',fontWeight:'var(--weight-bold)',color:'var(--color-text-100)',marginBottom:'24px'}}>Terminal</h2>
             <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
               <div className="form-group">
+                <label className="form-label">Terminal Theme</label>
+                <select className="form-input form-select" value={termTheme} onChange={e=>setTermTheme(e.target.value)}>
+                  <option value="dark">Default Dark</option>
+                  <option value="nord">Nord Theme</option>
+                  <option value="dracula">Dracula Theme</option>
+                  <option value="solarized">Solarized Dark</option>
+                  <option value="light">Light Theme</option>
+                </select>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Font Size</label>
                 <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                   <input type="range" min={10} max={20} value={termFontSize} onChange={e=>setTermFontSize(+e.target.value)} style={{flex:1}}/>
@@ -67,7 +152,7 @@ export default function SettingsPanel() {
               </div>
               <div className="form-group">
                 <label className="form-label">Font Family</label>
-                <select className="form-input form-select" value={termFont} onChange={e=>setTermFont(e.target.value)}>
+                <select className="form-input form-select" value={termFontFamily} onChange={e=>setTermFontFamily(e.target.value)}>
                   <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
                   <option value="'Fira Code', monospace">Fira Code</option>
                   <option value="'Cascadia Code', monospace">Cascadia Code</option>
@@ -75,8 +160,14 @@ export default function SettingsPanel() {
                   <option value="monospace">System Monospace</option>
                 </select>
               </div>
-              <div style={{background:'#0A0E1A',border:'1px solid var(--color-border-subtle)',borderRadius:'var(--radius-lg)',padding:'16px',fontFamily:termFont,fontSize:`${termFontSize}px`,color:'#CDD6F4'}}>
-                <span style={{color:'#A6E3A1'}}>user@server</span><span style={{color:'#CDD6F4'}}>:</span><span style={{color:'#89B4FA'}}>~/projects</span><span style={{color:'#00D4FF'}}> $ </span><span>ls -la</span>
+              <div className="form-group">
+                <label style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',fontSize:'var(--text-sm)',color:'var(--color-text-400)'}}>
+                  <input type="checkbox" checked={logHighlightActive} onChange={e=>setLogHighlightActive(e.target.checked)} style={{width:'16px',height:'16px'}}/>
+                  Enable Live Log Triggers & Highlighting (ERROR, SUCCESS, IP addresses)
+                </label>
+              </div>
+              <div style={{background:termTheme==='light'?'#F8FAFF':'#0A0E1A',border:'1px solid var(--color-border-subtle)',borderRadius:'var(--radius-lg)',padding:'16px',fontFamily:termFontFamily,fontSize:`${termFontSize}px`,color:termTheme==='light'?'#2A3252':'#CDD6F4'}}>
+                <span style={{color:'#A6E3A1'}}>user@server</span><span style={{color:termTheme==='light'?'#2A3252':'#CDD6F4'}}>:</span><span style={{color:'#89B4FA'}}>~/projects</span><span style={{color:'#00D4FF'}}> $ </span><span>ls -la</span>
               </div>
             </div>
           </div>
@@ -103,7 +194,65 @@ export default function SettingsPanel() {
                 All credentials are encrypted with <strong style={{color:'var(--color-text-300)'}}>AES-256-GCM</strong> using a key stored in your OS keychain.
                 SSH private keys and passwords are never stored in plaintext.
               </div>
-              <button className="btn btn-danger btn-sm" style={{alignSelf:'flex-start'}} onClick={() => logout()}>
+
+              {/* MFA Setup Block */}
+              <div style={{borderTop:'1px solid var(--color-border-subtle)',paddingTop:'20px',marginTop:'10px'}}>
+                <h3 style={{fontSize:'var(--text-md)',fontWeight:'var(--weight-semibold)',color:'var(--color-text-200)',marginBottom:'12px'}}>
+                  Multi-Factor Authentication (MFA)
+                </h3>
+                
+                {mfaEnabled ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'8px',background:'rgba(46, 160, 67, 0.1)',border:'1px solid rgba(46, 160, 67, 0.2)',padding:'10px 14px',borderRadius:'var(--radius-md)',color:'#7ee787',fontSize:'var(--text-sm)'}}>
+                      <Shield size={16}/>
+                      <span>MFA is currently active on your account.</span>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" style={{color:'var(--color-danger-500)',alignSelf:'flex-start'}} onClick={handleDisableMfa}>
+                      Disable MFA
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+                    <p style={{fontSize:'var(--text-sm)',color:'var(--color-text-500)',margin:0,lineHeight:1.4}}>
+                      Protect your account with an extra layer of security. When enabled, you must provide a 6-digit TOTP verification code from an authenticator app during login.
+                    </p>
+                    
+                    {!mfaSetupData ? (
+                      <button className="btn btn-primary btn-sm" style={{alignSelf:'flex-start'}} onClick={handleSetupMfa}>
+                        Set up MFA
+                      </button>
+                    ) : (
+                      <div style={{background:'var(--color-base-750)',border:'1px solid var(--color-border-default)',borderRadius:'var(--radius-lg)',padding:'16px',display:'flex',flexDirection:'column',gap:'16px'}}>
+                        <div style={{display:'flex',gap:'16px',alignItems:'center'}}>
+                          <div style={{background:'white',padding:'8px',borderRadius:'var(--radius-md)',display:'flex',alignItems:'center',justifyContent:'center',width:'140px',height:'140px',flexShrink:0}}>
+                            <img src={mfaSetupData.qrUrl} alt="MFA QR Code" style={{width:'124px',height:'124px'}} />
+                          </div>
+                          <div style={{flex:1,display:'flex',flexDirection:'column',gap:'8px',fontSize:'var(--text-sm)',color:'var(--color-text-300)'}}>
+                            <strong>Step 1: Scan QR Code</strong>
+                            <span>Scan the code using your authenticator app. If you cannot scan it, enter the secret code manually:</span>
+                            <code style={{background:'var(--color-base-850)',padding:'4px 8px',borderRadius:'var(--radius-sm)',fontSize:'var(--text-xs)',fontFamily:'var(--font-mono)',color:'var(--color-accent-400)'}}>
+                              {mfaSetupData.secret}
+                            </code>
+                          </div>
+                        </div>
+                        
+                        <div style={{borderTop:'1px solid var(--color-border-subtle)',paddingTop:'12px',display:'flex',flexDirection:'column',gap:'10px'}}>
+                          <strong>Step 2: Enter Verification Code</strong>
+                          <div style={{display:'flex',gap:'10px'}}>
+                            <input className="form-input" style={{maxWidth:'180px'}} maxLength={6} placeholder="6-digit code" value={mfaCode} onChange={e => setMfaCode(e.target.value)}/>
+                            <button className="btn btn-primary btn-sm" onClick={handleEnableMfa}>Verify & Enable</button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setMfaSetupData(null)}>Cancel</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {mfaError && <p className="form-error" style={{marginTop:'8px'}}>{mfaError}</p>}
+                {mfaSuccess && <p className="form-success" style={{marginTop:'8px',color:'#A6E3A1',fontSize:'13px'}}>{mfaSuccess}</p>}
+              </div>
+
+              <button className="btn btn-danger btn-sm" style={{alignSelf:'flex-start',marginTop:'10px'}} onClick={() => logout()}>
                 Sign Out
               </button>
             </div>

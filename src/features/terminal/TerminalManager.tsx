@@ -1,4 +1,4 @@
-import { Plus, X, Terminal, Server, FolderOpen, Zap, SplitSquareHorizontal } from 'lucide-react'
+import { Plus, X, Terminal, Server, FolderOpen, Zap, SplitSquareHorizontal, Radio } from 'lucide-react'
 import { useTerminalStore } from '../../store/terminal.store'
 import { useUIStore } from '../../store/ui.store'
 import { useAuthStore } from '../../store/auth.store'
@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid'
 import './Terminal.css'
 
 export default function TerminalManager() {
-  const { tabs, activeTabId, setActiveTab, removeTab, toggleSftp, addTab } = useTerminalStore()
+  const { tabs, activeTabId, setActiveTab, removeTab, toggleSftp, addTab, broadcastActive, setBroadcastActive } = useTerminalStore()
   const { setShowSnippetPalette } = useUIStore()
   const { session } = useAuthStore()
 
@@ -64,6 +64,11 @@ export default function TerminalManager() {
             </span>
           </div>
           <div style={{display:'flex',gap:'4px'}}>
+            <button className={`btn btn-icon btn-sm ${broadcastActive?'active':''}`}
+              style={broadcastActive?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
+              onClick={() => setBroadcastActive(!broadcastActive)} title={broadcastActive?'Disable Keystroke Broadcasting':'Enable Keystroke Broadcasting (Cluster Shell)'}>
+              <Radio size={13}/>
+            </button>
             <button className="btn btn-icon btn-sm" onClick={() => setShowSnippetPalette(true)} title="Snippets (Ctrl+Shift+P)">
               <Zap size={13}/>
             </button>

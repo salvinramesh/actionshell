@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import { useConnectionsStore } from '../../store/connections.store'
 import type { User, AuditLog, ActiveSession } from '../../../shared/types'
-import { Users, Server, Activity, Shield, BarChart2, Clock, LogOut, Lock, Unlock, Trash2, Plus, CheckCircle, XCircle, Pencil } from 'lucide-react'
+import { Users, Server, Activity, Shield, BarChart2, Clock, LogOut, Lock, Unlock, Trash2, Plus, CheckCircle, XCircle, Pencil, AlertCircle, Play, Pause } from 'lucide-react'
+import { Terminal as XTerm } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
 import './Admin.css'
 
 type AdminTab = 'overview' | 'users' | 'servers' | 'audit' | 'sessions'
@@ -17,6 +19,7 @@ export default function AdminDashboard() {
   const [audit, setAudit] = useState<AuditLog[]>([])
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [replayingSessionId, setReplayingSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     window.actionshell.admin.stats().then(r => { if(r.success) setStats(r.data) })
@@ -145,7 +148,7 @@ export default function AdminDashboard() {
               <button className="btn btn-ghost btn-sm" onClick={loadAudit}>Refresh</button>
             </div>
             <table className="data-table">
-              <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Resource</th><th>Severity</th></tr></thead>
+              <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Resource</th><th>Severity</th><th>Actions</th></tr></thead>
               <tbody>
                 {audit.map(a => (
                   <tr key={a.id}>
@@ -154,10 +157,23 @@ export default function AdminDashboard() {
                     <td><code style={{fontSize:'var(--text-xs)',color:'var(--color-accent-400)'}}>{a.action}</code></td>
                     <td style={{fontSize:'var(--text-xs)',color:'var(--color-text-500)'}}>{a.resourceName || a.resourceId || '—'}</td>
                     <td><span className={`badge ${a.severity==='critical'?'badge-red':a.severity==='warning'?'badge-amber':'badge-slate'}`}>{a.severity}</span></td>
+                    <td>
+                      {a.action === 'SSH_CONNECT' && (a.details as any)?.sessionId && (
+                        <button className="btn btn-icon btn-sm" style={{color:'var(--color-accent-400)'}} onClick={() => setReplayingSessionId((a.details as any).sessionId)} title="Replay Session">
+                          <Play size={12}/>
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {replayingSessionId && (
+              <SessionReplayModal 
+                sessionId={replayingSessionId} 
+                onClose={() => setReplayingSessionId(null)} 
+              />
+            )}
           </div>
         )}
 
@@ -534,5 +550,113 @@ function ServersPermissionsTab() {
         document.body
       )}
     </div>
+  )
+}
+
+function SessionReplayModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const xtermRef = useRef<XTerm | null>(null)
+  const playRef = useRef(true)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    window.actionshell.admin.sessionsRecording(sessionId).then(res => {
+      if (!res.success) {
+        setError(res.error || 'Failed to load recording')
+        setLoading(false)
+        return
+      }
+
+      const events = res.data
+      setLoading(false)
+
+      setTimeout(() => {
+        if (!containerRef.current) return
+        const xterm = new XTerm({
+          theme: { background: '#0A0E1A', foreground: '#CDD6F4' },
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 13,
+          cursorBlink: false,
+          disableStdin: true
+        })
+        const fitAddon = new FitAddon()
+        xterm.loadAddon(fitAddon)
+        xterm.open(containerRef.current)
+        fitAddon.fit()
+        xtermRef.current = xterm
+
+        playEvents(events, xterm)
+      }, 50)
+    })
+
+    return () => {
+      playRef.current = false
+      if (xtermRef.current) {
+        xtermRef.current.dispose()
+      }
+    }
+  }, [sessionId])
+
+  const playEvents = async (events: any[], xterm: XTerm) => {
+    setIsPlaying(true)
+    playRef.current = true
+    let lastTime = events[0]?.time || 0
+
+    for (let i = 0; i < events.length; i++) {
+      if (!playRef.current) break
+      const event = events[i]
+      const delay = Math.min(event.time - lastTime, 1000)
+      lastTime = event.time
+
+      if (delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+      if (!playRef.current) break
+      xterm.write(event.data)
+      setProgress(Math.round(((i + 1) / events.length) * 100))
+    }
+    setIsPlaying(false)
+  }
+
+  return createPortal(
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', height: '550px', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-header">
+          <h3 className="modal-title">Session Replay</h3>
+          <button className="btn btn-icon" onClick={onClose}><XCircle size={16}/></button>
+        </div>
+        <div className="modal-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '16px', background: '#0A0E1A' }}>
+          {loading ? (
+            <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-500)' }}>
+              <div className="spinner" />
+              <span style={{ marginTop: '12px' }}>Loading session recording...</span>
+            </div>
+          ) : error ? (
+            <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: 'var(--color-danger-500)' }}>
+              <AlertCircle size={18} style={{ marginRight: '8px' }} /> {error}
+            </div>
+          ) : (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div ref={containerRef} style={{ flex: 1, width: '100%', height: '100%', minHeight: 0, overflow: 'hidden' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', background: 'var(--color-base-800)', padding: '8px 12px', borderRadius: 'var(--radius-md)' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-400)', fontFamily: 'var(--font-mono)' }}>
+                  {isPlaying ? 'PLAYING' : 'FINISHED'}
+                </span>
+                <div style={{ flex: 1, height: '4px', background: 'var(--color-base-600)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ width: `${progress}%`, height: '100%', background: 'var(--color-accent-500)', transition: 'width 100ms' }} />
+                </div>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-400)', fontFamily: 'var(--font-mono)' }}>
+                  {progress}%
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
   )
 }

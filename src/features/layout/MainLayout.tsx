@@ -7,6 +7,7 @@ import Sidebar from '../connections/Sidebar'
 import TerminalManager from '../terminal/TerminalManager'
 import AdminDashboard from '../admin/AdminDashboard'
 import SettingsPanel from '../settings/SettingsPanel'
+import TunnelsManager from '../tunnels/TunnelsManager'
 import ConnectionForm from '../connections/ConnectionForm'
 import SnippetPalette from '../snippets/SnippetPalette'
 import { useTerminalStore } from '../../store/terminal.store'
@@ -64,6 +65,7 @@ export default function MainLayout() {
           {currentView === 'terminal' && <TerminalManager />}
           {currentView === 'admin' && <AdminDashboard />}
           {currentView === 'settings' && <SettingsPanel />}
+          {currentView === 'tunnels' && <TunnelsManager />}
         </main>
       </div>
       {showConnectionForm && <ConnectionForm />}

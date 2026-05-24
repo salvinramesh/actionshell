@@ -10,6 +10,10 @@ const api = {
     login: (data: any) => ipcRenderer.invoke('auth:login', data),
     logout: (token: string) => ipcRenderer.invoke('auth:logout', token),
     validate: (token: string) => ipcRenderer.invoke('auth:validate', token),
+    me: () => ipcRenderer.invoke('auth:me'),
+    mfaSetup: () => ipcRenderer.invoke('auth:mfa:setup'),
+    mfaEnable: (secret: string, code: string) => ipcRenderer.invoke('auth:mfa:enable', { secret, code }),
+    mfaDisable: () => ipcRenderer.invoke('auth:mfa:disable'),
   },
   
   // Admin - Users
@@ -28,6 +32,7 @@ const api = {
     stats: () => ipcRenderer.invoke('admin:stats'),
     auditList: (filters?: any) => ipcRenderer.invoke('admin:audit:list', filters),
     sessionsList: () => ipcRenderer.invoke('admin:sessions:list'),
+    sessionsRecording: (sessionId: string) => ipcRenderer.invoke('admin:sessions:recording', { sessionId }),
     permissionsList: (hostId: string) => ipcRenderer.invoke('admin:permissions:list', { hostId }),
     permissionsGrant: (data: any, actorId: string) => ipcRenderer.invoke('admin:permissions:grant', { data, actorId }),
     permissionsRevoke: (permId: string, actorId: string) => ipcRenderer.invoke('admin:permissions:revoke', { permId, actorId }),
@@ -109,11 +114,22 @@ const api = {
     disconnect: (sessionId: string) => ipcRenderer.invoke('sftp:disconnect', { sessionId }),
     pickFiles: () => ipcRenderer.invoke('sftp:pick-files'),
     pickSaveDir: () => ipcRenderer.invoke('sftp:pick-save-dir'),
+    readTextFile: (sessionId: string, remotePath: string) =>
+      ipcRenderer.invoke('sftp:read-text-file', { sessionId, remotePath }),
+    writeTextFile: (sessionId: string, remotePath: string, content: string) =>
+      ipcRenderer.invoke('sftp:write-text-file', { sessionId, remotePath, content }),
     onProgress: (callback: (data: any) => void) => {
       const handler = (_: any, data: any) => callback(data)
       ipcRenderer.on('sftp:transfer:progress', handler)
       return () => ipcRenderer.removeListener('sftp:transfer:progress', handler)
     },
+  },
+
+  // Tunnels
+  tunnels: {
+    start: (tunnel: any) => ipcRenderer.invoke('tunnels:start', tunnel),
+    stop: (id: string) => ipcRenderer.invoke('tunnels:stop', { id }),
+    list: () => ipcRenderer.invoke('tunnels:list'),
   },
   
   // Snippets

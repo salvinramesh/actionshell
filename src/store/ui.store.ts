@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-type View = 'terminal' | 'admin' | 'settings'
+type View = 'terminal' | 'admin' | 'settings' | 'tunnels'
 type Theme = 'dark' | 'light'
 
 interface UIStore {
@@ -11,6 +11,10 @@ interface UIStore {
   showConnectionForm: boolean
   editingHostId: string | null
   notifications: Notification[]
+  termTheme: string
+  termFontSize: number
+  termFontFamily: string
+  logHighlightActive: boolean
 
   setTheme: (t: Theme) => void
   setView: (v: View) => void
@@ -19,6 +23,10 @@ interface UIStore {
   setShowConnectionForm: (v: boolean, hostId?: string) => void
   addNotification: (n: Omit<Notification, 'id'>) => void
   removeNotification: (id: string) => void
+  setTermTheme: (t: string) => void
+  setTermFontSize: (s: number) => void
+  setTermFontFamily: (f: string) => void
+  setLogHighlightActive: (v: boolean) => void
 }
 
 export interface Notification {
@@ -37,6 +45,10 @@ export const useUIStore = create<UIStore>((set) => ({
   showConnectionForm: false,
   editingHostId: null,
   notifications: [],
+  termTheme: 'dark',
+  termFontSize: 13,
+  termFontFamily: "'JetBrains Mono', monospace",
+  logHighlightActive: true,
 
   setTheme: (theme) => {
     set({ theme })
@@ -63,5 +75,10 @@ export const useUIStore = create<UIStore>((set) => ({
 
   removeNotification: (id) => set(s => ({
     notifications: s.notifications.filter(n => n.id !== id)
-  }))
+  })),
+
+  setTermTheme: (termTheme) => set({ termTheme }),
+  setTermFontSize: (termFontSize) => set({ termFontSize }),
+  setTermFontFamily: (termFontFamily) => set({ termFontFamily }),
+  setLogHighlightActive: (logHighlightActive) => set({ logHighlightActive }),
 }))

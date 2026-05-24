@@ -87,16 +87,24 @@ export async function setupSuperAdmin(data: SetupData): Promise<{ success: boole
 export async function login(data: LoginData): Promise<{
   success: boolean
   session?: AuthSession
+  mfaRequired?: boolean
+  userId?: string
   error?: string
 }> {
   const res = await api.post<{
     token: string
     user: { id: string; email: string; name: string; role: string; status: string }
+    mfaRequired?: boolean
+    userId?: string
     error?: string
   }>('/auth/login', data)
 
   if (!res.ok) {
     return { success: false, error: (res.data as any).error || 'Login failed' }
+  }
+
+  if (res.data.mfaRequired) {
+    return { success: true, mfaRequired: true, userId: res.data.userId }
   }
 
   setAuthToken(res.data.token)
@@ -110,6 +118,21 @@ export async function login(data: LoginData): Promise<{
   }
 
   return { success: true, session: currentSession }
+}
+
+export async function setupMFA(): Promise<{ success: boolean; secret?: string; otpauthUrl?: string; error?: string }> {
+  const res = await api.get<{ secret: string; otpauthUrl: string }>('/auth/mfa/setup')
+  return res.ok ? { success: true, ...res.data } : { success: false, error: (res.data as any).error }
+}
+
+export async function enableMFA(secret: string, code: string): Promise<{ success: boolean; error?: string }> {
+  const res = await api.post<{ error?: string }>('/auth/mfa/enable', { secret, code })
+  return res.ok ? { success: true } : { success: false, error: res.data.error }
+}
+
+export async function disableMFA(): Promise<{ success: boolean; error?: string }> {
+  const res = await api.post<{ error?: string }>('/auth/mfa/disable')
+  return res.ok ? { success: true } : { success: false, error: res.data.error }
 }
 
 export function validateSession(token: string): AuthSession | null {
@@ -158,6 +181,11 @@ export function validateSession(token: string): AuthSession | null {
 export async function logout(_token: string): Promise<void> {
   currentSession = null
   setAuthToken(null)
+}
+
+export async function getMe(): Promise<{ success: boolean; user?: any; error?: string }> {
+  const res = await api.get<{ user: any }>('/auth/me')
+  return res.ok ? { success: true, user: res.data.user } : { success: false, error: (res.data as any).error }
 }
 
 /**
