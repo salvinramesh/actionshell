@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../store/auth.store'
 import type { AuthSession } from '../../../shared/types'
-import './Auth.module.css'
+import './Auth.css'
 
 interface Props { onLogin: () => void }
 

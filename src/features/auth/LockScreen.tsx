@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../store/auth.store'
-import './Auth.module.css'
+import './Auth.css'
 
 interface Props { onUnlock: () => void }
 

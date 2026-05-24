@@ -24,8 +24,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   setSession: (session) => {
     set({ session, isLocked: false, error: null })
-    if (session) sessionStorage.setItem(SESSION_KEY, session.token)
-    else sessionStorage.removeItem(SESSION_KEY)
+    if (session) localStorage.setItem(SESSION_KEY, session.token)
+    else localStorage.removeItem(SESSION_KEY)
   },
 
   setLocked: (isLocked) => set({ isLocked }),
@@ -35,12 +35,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   logout: async () => {
     const { session } = get()
     if (session) await window.actionshell.auth.logout(session.token)
-    sessionStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(SESSION_KEY)
     set({ session: null, isLocked: false })
   },
 
   restoreSession: async () => {
-    const token = sessionStorage.getItem(SESSION_KEY)
+    const token = localStorage.getItem(SESSION_KEY)
     if (!token) return null
     try {
       const res = await window.actionshell.auth.validate(token)
@@ -49,7 +49,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         return res.data as AuthSession
       }
     } catch {}
-    sessionStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(SESSION_KEY)
     return null
   }
 }))
