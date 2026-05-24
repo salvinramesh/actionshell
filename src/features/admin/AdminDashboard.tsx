@@ -241,14 +241,94 @@ function AddUserModal({ onCreated }: { onCreated: () => void }) {
 }
 
 function ServersPermissionsTab() {
+  const { session } = useAuthStore()
   const { hosts } = useConnectionsStore()
   const [selectedHost, setSelectedHost] = useState<string|null>(null)
   const [permissions, setPermissions] = useState<any[]>([])
+  
+  // Grant modal states
+  const [showGrantModal, setShowGrantModal] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [grantForm, setGrantForm] = useState({
+    userId: '',
+    canConnect: true,
+    canSftp: true,
+    canTunnel: false,
+    isTemporary: false,
+    expiresAt: ''
+  })
+  const [grantError, setGrantError] = useState('')
+  const [grantLoading, setGrantLoading] = useState(false)
 
   const loadPerms = async (hostId: string) => {
     setSelectedHost(hostId)
     const res = await window.actionshell.admin.permissionsList(hostId)
     if (res.success) setPermissions(res.data as any[])
+  }
+
+  useEffect(() => {
+    if (showGrantModal) {
+      window.actionshell.adminUsers.list().then(r => {
+        if (r.success) {
+          const nonAdmins = (r.data as User[]).filter(u => u.role !== 'super_admin' && u.role !== 'admin')
+          setUsers(nonAdmins)
+          if (nonAdmins.length > 0) {
+            setGrantForm(f => ({ ...f, userId: nonAdmins[0].id }))
+          }
+        }
+      })
+    }
+  }, [showGrantModal])
+
+  const handleGrantSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!grantForm.userId) {
+      setGrantError('Please select a user')
+      return
+    }
+    setGrantLoading(true)
+    setGrantError('')
+    try {
+      const data = {
+        hostId: selectedHost!,
+        granteeType: 'user',
+        granteeId: grantForm.userId,
+        canConnect: grantForm.canConnect,
+        canSftp: grantForm.canSftp,
+        canTunnel: grantForm.canTunnel,
+        isTemporary: grantForm.isTemporary,
+        expiresAt: grantForm.isTemporary && grantForm.expiresAt ? new Date(grantForm.expiresAt).toISOString() : null
+      }
+      const res = await window.actionshell.admin.permissionsGrant(data, session!.userId)
+      if (res.success) {
+        setShowGrantModal(false)
+        setGrantForm({
+          userId: '',
+          canConnect: true,
+          canSftp: true,
+          canTunnel: false,
+          isTemporary: false,
+          expiresAt: ''
+        })
+        loadPerms(selectedHost!)
+      } else {
+        setGrantError(res.error || 'Failed to grant access')
+      }
+    } catch (err: any) {
+      setGrantError(err.message || 'An error occurred')
+    } finally {
+      setGrantLoading(false)
+    }
+  }
+
+  const handleRevoke = async (permId: string) => {
+    if (!confirm('Are you sure you want to revoke this user\'s access to this server?')) return
+    const res = await window.actionshell.admin.permissionsRevoke(permId, session!.userId)
+    if (res.success) {
+      loadPerms(selectedHost!)
+    } else {
+      alert(res.error || 'Failed to revoke permission')
+    }
   }
 
   return (
@@ -267,8 +347,16 @@ function ServersPermissionsTab() {
         <div>
           {selectedHost ? (
             <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-200)' }}>
+                  Active Access Grants
+                </h3>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowGrantModal(true)}>
+                  <Plus size={13}/> Grant Access
+                </button>
+              </div>
               <table className="data-table">
-                <thead><tr><th>Grantee</th><th>Type</th><th>Connect</th><th>SFTP</th><th>Tunnel</th><th>Status</th><th>Expires</th></tr></thead>
+                <thead><tr><th>Grantee</th><th>Type</th><th>Connect</th><th>SFTP</th><th>Tunnel</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead>
                 <tbody>
                   {permissions.map(p => (
                     <tr key={p.id}>
@@ -279,6 +367,13 @@ function ServersPermissionsTab() {
                       <td>{p.canTunnel?<CheckCircle size={14} style={{color:'var(--color-success-500)'}}/>:<XCircle size={14} style={{color:'var(--color-danger-500)'}}/>}</td>
                       <td><span className={`badge ${p.isActive?'badge-green':'badge-red'}`}>{p.isActive?'Active':'Revoked'}</span></td>
                       <td style={{fontSize:'var(--text-xs)',color:'var(--color-text-500)'}}>{p.expiresAt?new Date(p.expiresAt).toLocaleDateString():'Never'}</td>
+                      <td>
+                        {p.isActive && (
+                          <button className="btn btn-icon btn-sm" style={{ color: 'var(--color-danger-500)', padding: '4px' }} onClick={() => handleRevoke(p.id)} title="Revoke Access">
+                            <Trash2 size={12}/>
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -290,6 +385,77 @@ function ServersPermissionsTab() {
           )}
         </div>
       </div>
+
+      {showGrantModal && (
+        <div className="modal-overlay" onClick={() => setShowGrantModal(false)}>
+          <div className="modal animate-scaleIn" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Grant Server Access</h3>
+              <button className="btn btn-icon" onClick={() => setShowGrantModal(false)}><XCircle size={16}/></button>
+            </div>
+            <form onSubmit={handleGrantSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Select User</label>
+                  {users.length === 0 ? (
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-500)' }}>
+                      No standard or read-only users found. All admins have immediate access.
+                    </p>
+                  ) : (
+                    <select className="form-input form-select" value={grantForm.userId}
+                      onChange={e => setGrantForm(f => ({ ...f, userId: e.target.value }))}>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '24px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--text-sm)', color: 'var(--color-text-300)' }}>
+                    <input type="checkbox" checked={grantForm.canConnect}
+                      onChange={e => setGrantForm(f => ({ ...f, canConnect: e.target.checked }))}/>
+                    SSH Terminal
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--text-sm)', color: 'var(--color-text-300)' }}>
+                    <input type="checkbox" checked={grantForm.canSftp}
+                      onChange={e => setGrantForm(f => ({ ...f, canSftp: e.target.checked }))}/>
+                    SFTP Client
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--text-sm)', color: 'var(--color-text-300)' }}>
+                    <input type="checkbox" checked={grantForm.canTunnel}
+                      onChange={e => setGrantForm(f => ({ ...f, canTunnel: e.target.checked }))}/>
+                    Tunnelling
+                  </label>
+                </div>
+
+                <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--text-sm)', color: 'var(--color-text-300)' }}>
+                    <input type="checkbox" checked={grantForm.isTemporary}
+                      onChange={e => setGrantForm(f => ({ ...f, isTemporary: e.target.checked }))}/>
+                    Temporary Grant (Auto-expire)
+                  </label>
+                  {grantForm.isTemporary && (
+                    <div style={{ marginTop: '8px' }}>
+                      <label className="form-label">Expiry Date & Time</label>
+                      <input className="form-input" type="datetime-local" required
+                        value={grantForm.expiresAt} onChange={e => setGrantForm(f => ({ ...f, expiresAt: e.target.value }))}/>
+                    </div>
+                  )}
+                </div>
+
+                {grantError && <p className="form-error">{grantError}</p>}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowGrantModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={grantLoading || users.length === 0}>
+                  {grantLoading ? <span className="spinner"/> : 'Grant Access'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
