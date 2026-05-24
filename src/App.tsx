@@ -32,8 +32,13 @@ export default function App() {
 
   useEffect(() => {
     if (appState === 'loading') return
-    if (isLocked) { setAppState('locked'); return }
-    if (session) { setAppState('app'); return }
+    if (isLocked) {
+      setAppState('locked')
+    } else if (session) {
+      setAppState('app')
+    } else {
+      setAppState('login')
+    }
   }, [session, isLocked])
 
   if (appState === 'loading') return <AppLoader />
