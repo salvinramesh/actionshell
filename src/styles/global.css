@@ -62,7 +62,7 @@ a { color: inherit; text-decoration: none; }
 .btn-danger { background: var(--color-danger-500); color: #fff; }
 .btn-danger:hover:not(:disabled) { background: var(--color-danger-600); }
 .btn-sm { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
-.btn-icon { padding: var(--space-2); border-radius: var(--radius-md); }
+.btn-icon { padding: var(--space-2); border-radius: var(--radius-md); color: var(--color-text-400); }
 .btn-icon:hover { background: var(--color-base-650); color: var(--color-text-200); }
 
 /* === Form Controls === */
