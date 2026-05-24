@@ -34,8 +34,29 @@ export default function ConnectionForm() {
     privateKey: '',
     passphrase: '',
     credentialLabel: '',
-    credType: 'password' as CredentialType,
+    credType: (editing?.authType === 'key' ? 'openssh' : 'password') as CredentialType,
   })
+
+  useEffect(() => {
+    async function loadCredentialDetails() {
+      if (editingHostId) {
+        try {
+          const res = await window.actionshell.credentials.list(editingHostId)
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const firstCred = res.data[0]
+            setForm(f => ({
+              ...f,
+              credType: firstCred.type,
+              credentialLabel: firstCred.label || '',
+            }))
+          }
+        } catch (err) {
+          console.error('Failed to load credential details:', err)
+        }
+      }
+    }
+    loadCredentialDetails()
+  }, [editingHostId])
 
   const set = (k: keyof typeof form, v: any) => setForm(f => ({...f, [k]: v}))
 
@@ -167,7 +188,17 @@ export default function ConnectionForm() {
               <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
                 <div className="form-group">
                   <label className="form-label">Authentication Method</label>
-                  <select className="form-input form-select" value={form.authType} onChange={e=>set('authType',e.target.value)}>
+                  <select className="form-input form-select" value={form.authType}
+                    onChange={e => {
+                      const newAuthType = e.target.value as 'password'|'key'|'agent'
+                      setForm(f => ({
+                        ...f,
+                        authType: newAuthType,
+                        credType: newAuthType === 'password'
+                          ? 'password'
+                          : (f.credType === 'password' ? 'openssh' : f.credType)
+                      }))
+                    }}>
                     <option value="password">Password</option>
                     <option value="key">SSH Key</option>
                     <option value="agent">SSH Agent</option>
