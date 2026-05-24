@@ -146,6 +146,36 @@ export default function TerminalPane({ tab, active }: Props) {
       }
     })
 
+    // Select + right click to copy, right click to paste (Windows cmd behavior)
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      if (xterm.hasSelection()) {
+        const text = xterm.getSelection()
+        navigator.clipboard.writeText(text)
+        xterm.clearSelection()
+      } else {
+        navigator.clipboard.readText().then((text) => {
+          if (text) {
+            const terminalStore = useTerminalStore.getState()
+            if (terminalStore.broadcastActive) {
+              terminalStore.tabs.forEach(t => {
+                if (t.status === 'connected') {
+                  window.actionshell.terminal.input(t.sessionId, text, t.isLocal || false)
+                }
+              })
+            } else {
+              window.actionshell.terminal.input(tab.sessionId, text, tab.isLocal || false)
+            }
+          }
+        }).catch(() => {})
+      }
+    }
+
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('contextmenu', handleContextMenu)
+    }
+
     // Terminal output listener
     const removeOutput = window.actionshell.terminal.onOutput(({ sessionId, data }) => {
       if (sessionId === tab.sessionId) {
@@ -202,6 +232,9 @@ export default function TerminalPane({ tab, active }: Props) {
     }
 
     return () => {
+      if (container) {
+        container.removeEventListener('contextmenu', handleContextMenu)
+      }
       removeOutput()
       removeClose()
       removeError()

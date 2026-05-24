@@ -563,6 +563,9 @@ function SessionReplayModal({ sessionId, onClose }: { sessionId: string; onClose
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
+    let containerElement: HTMLDivElement | null = null
+    let handleContextMenu: ((e: MouseEvent) => void) | null = null
+
     window.actionshell.admin.sessionsRecording(sessionId).then(res => {
       if (!res.success) {
         setError(res.error || 'Failed to load recording')
@@ -588,6 +591,17 @@ function SessionReplayModal({ sessionId, onClose }: { sessionId: string; onClose
         fitAddon.fit()
         xtermRef.current = xterm
 
+        handleContextMenu = (e: MouseEvent) => {
+          e.preventDefault()
+          if (xterm.hasSelection()) {
+            const text = xterm.getSelection()
+            navigator.clipboard.writeText(text)
+            xterm.clearSelection()
+          }
+        }
+        containerElement = containerRef.current
+        containerElement.addEventListener('contextmenu', handleContextMenu)
+
         playEvents(events, xterm)
       }, 50)
     })
@@ -596,6 +610,9 @@ function SessionReplayModal({ sessionId, onClose }: { sessionId: string; onClose
       playRef.current = false
       if (xtermRef.current) {
         xtermRef.current.dispose()
+      }
+      if (containerElement && handleContextMenu) {
+        containerElement.removeEventListener('contextmenu', handleContextMenu)
       }
     }
   }, [sessionId])
