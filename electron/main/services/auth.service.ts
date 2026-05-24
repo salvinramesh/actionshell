@@ -112,11 +112,38 @@ export async function login(data: LoginData): Promise<{
   return { success: true, session: currentSession }
 }
 
-/**
- * Validate current session
- */
 export function validateSession(token: string): AuthSession | null {
-  if (!currentSession || currentSession.token !== token) return null
+  if (!token) return null
+
+  if (!currentSession || currentSession.token !== token) {
+    try {
+      const parts = token.split('.')
+      if (parts.length !== 3) return null
+
+      const payloadJson = Buffer.from(parts[1], 'base64').toString('utf8')
+      const payload = JSON.parse(payloadJson)
+
+      const expiresAt = (payload.exp * 1000) || (Date.now() + SESSION_DURATION_MS)
+      if (Date.now() > expiresAt) {
+        setAuthToken(null)
+        return null
+      }
+
+      currentSession = {
+        userId: payload.id || payload.userId || payload.sub || '',
+        email: payload.email || '',
+        name: payload.name || '',
+        role: (payload.role || 'standard') as UserRole,
+        token,
+        expiresAt,
+      }
+      setAuthToken(token)
+    } catch (err) {
+      console.error('Failed to restore session from token:', err)
+      return null
+    }
+  }
+
   if (Date.now() > currentSession.expiresAt) {
     currentSession = null
     setAuthToken(null)
