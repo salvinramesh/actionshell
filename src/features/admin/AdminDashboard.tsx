@@ -44,6 +44,24 @@ export default function AdminDashboard() {
     await window.actionshell.adminUsers.delete(u.id, session!.userId)
     loadUsers()
   }
+  const approveUser = async (u: User) => {
+    if (!confirm(`Approve user registration for ${u.email}?`)) return
+    const res = await window.actionshell.adminUsers.approve(u.id)
+    if (res.success) {
+      loadUsers()
+    } else {
+      alert(res.error || 'Failed to approve user')
+    }
+  }
+  const rejectUser = async (u: User) => {
+    if (!confirm(`Reject user registration for ${u.email}? This will deny access and delete the pending registration.`)) return
+    const res = await window.actionshell.adminUsers.reject(u.id)
+    if (res.success) {
+      loadUsers()
+    } else {
+      alert(res.error || 'Failed to reject user')
+    }
+  }
 
   const tabs: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <BarChart2 size={15}/> },
@@ -101,24 +119,38 @@ export default function AdminDashboard() {
                     <td className="mono" style={{fontSize:'var(--text-xs)'}}>{u.email}</td>
                     <td><span className={`badge ${u.role==='super_admin'?'badge-cyan':u.role==='admin'?'badge-amber':'badge-slate'}`}>{u.role.replace('_',' ')}</span></td>
                     <td>
-                      {u.isLocked ? <span className="badge badge-red">Locked</span>
+                      {u.status === 'pending' ? <span className="badge badge-amber">Pending</span>
+                        : u.isLocked ? <span className="badge badge-red">Locked</span>
                         : u.isActive ? <span className="badge badge-green">Active</span>
                         : <span className="badge badge-slate">Inactive</span>}
                     </td>
                     <td style={{fontSize:'var(--text-xs)',color:'var(--color-text-500)'}}>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : '—'}</td>
                     <td>
                       <div style={{display:'flex',gap:'4px'}}>
-                        <button className="btn btn-icon btn-sm" onClick={() => setEditingUser(u)} title="Edit User">
-                          <Pencil size={12}/>
-                        </button>
-                        {u.id !== session?.userId && (
+                        {u.status === 'pending' ? (
                           <>
-                            <button className="btn btn-icon btn-sm" onClick={() => toggleUserLock(u)} title={u.isLocked?'Unlock':'Lock'}>
-                              {u.isLocked ? <Unlock size={12}/> : <Lock size={12}/>}
+                            <button className="btn btn-icon btn-sm" style={{color:'var(--color-success-500)'}} onClick={() => approveUser(u)} title="Approve Registration">
+                              <CheckCircle size={12}/>
                             </button>
-                            <button className="btn btn-icon btn-sm" style={{color:'var(--color-danger-500)'}} onClick={() => deleteUser(u)} title="Delete">
-                              <Trash2 size={12}/>
+                            <button className="btn btn-icon btn-sm" style={{color:'var(--color-danger-500)'}} onClick={() => rejectUser(u)} title="Reject Registration">
+                              <XCircle size={12}/>
                             </button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="btn btn-icon btn-sm" onClick={() => setEditingUser(u)} title="Edit User">
+                              <Pencil size={12}/>
+                            </button>
+                            {u.id !== session?.userId && (
+                              <>
+                                <button className="btn btn-icon btn-sm" onClick={() => toggleUserLock(u)} title={u.isLocked?'Unlock':'Lock'}>
+                                  {u.isLocked ? <Unlock size={12}/> : <Lock size={12}/>}
+                                </button>
+                                <button className="btn btn-icon btn-sm" style={{color:'var(--color-danger-500)'}} onClick={() => deleteUser(u)} title="Delete">
+                                  <Trash2 size={12}/>
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
                       </div>

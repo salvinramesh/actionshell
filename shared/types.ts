@@ -26,6 +26,7 @@ export interface User {
   mfaEnabled: boolean
   lastLoginAt: string | null
   createdAt: string
+  status?: string
 }
 
 export interface AuthSession {
