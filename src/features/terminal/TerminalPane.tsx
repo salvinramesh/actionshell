@@ -81,9 +81,9 @@ function highlightLogs(data: string): string {
   return result
 }
 
-interface Props { tab: TerminalTab; active: boolean }
+interface Props { tab: TerminalTab; active: boolean; isVisible: boolean }
 
-export default function TerminalPane({ tab, active }: Props) {
+export default function TerminalPane({ tab, active, isVisible }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<XTerm | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -301,7 +301,7 @@ export default function TerminalPane({ tab, active }: Props) {
       style={{
         width: '100%',
         height: '100%',
-        display: active ? 'block' : 'none',
+        display: isVisible ? 'block' : 'none',
         position: 'relative',
         background: activeTheme.background
       }}
