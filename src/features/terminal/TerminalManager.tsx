@@ -87,7 +87,7 @@ export default function TerminalManager() {
       <div className="terminal-content">
         <div className={`terminal-area ${activeTab?.showSftp ? 'with-sftp' : ''}`}>
           {tabs.map(tab => (
-            <TerminalPane key={tab.id} tab={tab} active={tab.id === activeTabId} />
+            <TerminalPane key={`${tab.id}-${tab.sessionId}`} tab={tab} active={tab.id === activeTabId} />
           ))}
         </div>
         {activeTab?.showSftp && activeTab.hostId && (

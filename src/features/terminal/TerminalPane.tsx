@@ -1,12 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
 import '@xterm/xterm/css/xterm.css'
 import type { TerminalTab } from '../../store/terminal.store'
 import { useTerminalStore } from '../../store/terminal.store'
 import { useUIStore } from '../../store/ui.store'
+import { v4 as uuidv4 } from 'uuid'
 
 const THEMES: Record<string, any> = {
   dark: {
@@ -87,8 +89,23 @@ export default function TerminalPane({ tab, active }: Props) {
   const fitRef = useRef<FitAddon | null>(null)
   const { updateTab } = useTerminalStore()
   const spawnedRef = useRef(false)
+  const [dismissed, setDismissed] = useState(false)
 
   const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive } = useUIStore()
+
+  useEffect(() => {
+    if (tab.status === 'connecting' || tab.status === 'connected') {
+      setDismissed(false)
+    }
+  }, [tab.status])
+
+  const handleReconnect = () => {
+    const newSessionId = uuidv4()
+    updateTab(tab.id, {
+      sessionId: newSessionId,
+      status: 'connecting'
+    })
+  }
 
   // Update configuration dynamically
   useEffect(() => {
@@ -263,16 +280,52 @@ export default function TerminalPane({ tab, active }: Props) {
   }, [active])
 
   const activeTheme = THEMES[termTheme] || THEMES.dark
+  const showOverlay = (tab.status === 'closed' || tab.status === 'error') && !dismissed
 
   return (
     <div
-      ref={containerRef}
       style={{
-        width: '100%', height: '100%',
+        width: '100%',
+        height: '100%',
         display: active ? 'block' : 'none',
-        background: activeTheme.background,
-        padding: '4px'
+        position: 'relative',
+        background: activeTheme.background
       }}
-    />
+    >
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          padding: '4px'
+        }}
+      />
+      {showOverlay && (
+        <div className="reconnect-overlay">
+          <div className="reconnect-card">
+            <div className={`reconnect-icon-container ${tab.status === 'error' ? 'error' : ''}`}>
+              <AlertTriangle size={20} />
+            </div>
+            <div className="reconnect-title">
+              {tab.status === 'error' ? 'Connection Failed' : 'Connection Closed'}
+            </div>
+            <div className="reconnect-message">
+              {tab.status === 'error'
+                ? 'An error occurred while establishing the connection.'
+                : `The session with host "${tab.title}" has ended.`}
+            </div>
+            <div className="reconnect-actions">
+              <button className="btn btn-ghost btn-sm" onClick={() => setDismissed(true)}>
+                Dismiss
+              </button>
+              <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }} onClick={handleReconnect}>
+                <RefreshCw size={11} />
+                Reconnect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

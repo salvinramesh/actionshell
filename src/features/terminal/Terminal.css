@@ -115,3 +115,81 @@
   color: var(--color-text-300);
   margin-right: 4px;
 }
+
+/* Reconnect Overlay */
+.reconnect-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.reconnect-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-6);
+  background: var(--color-base-800);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl), 0 0 20px rgba(0, 0, 0, 0.5);
+  max-width: 320px;
+  width: 90%;
+  animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  gap: var(--space-4);
+}
+
+.reconnect-icon-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(235, 203, 139, 0.15);
+  color: #ebcb8b; /* warning color */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reconnect-icon-container.error {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--color-danger-500);
+}
+
+.reconnect-title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-100);
+}
+
+.reconnect-message {
+  font-size: var(--text-xs);
+  color: var(--color-text-500);
+  line-height: 1.5;
+}
+
+.reconnect-actions {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.reconnect-actions button {
+  flex: 1;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
