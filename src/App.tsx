@@ -6,6 +6,8 @@ import LoginScreen from './features/auth/LoginScreen'
 import LockScreen from './features/auth/LockScreen'
 import MainLayout from './features/layout/MainLayout'
 import TitleBar from './features/layout/TitleBar'
+// @ts-ignore
+import logo from './logo.png'
 
 type AppState = 'loading' | 'setup' | 'login' | 'locked' | 'app'
 
@@ -82,12 +84,7 @@ function AppLoader() {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', width:'100%', flex:1, background:'var(--color-base-800)', flexDirection:'column', gap:'20px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="8" fill="url(#grad)"/>
-          <path d="M8 20l5-8 5 8M14 18h4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M20 12l4 4-4 4" stroke="#00D4FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <defs><linearGradient id="grad" x1="0" y1="0" x2="32" y2="32"><stop stopColor="#1A2238"/><stop offset="1" stopColor="#0A0E1A"/></linearGradient></defs>
-        </svg>
+        <img src={logo} alt="ActionShell" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
         <span style={{ fontSize:'20px', fontWeight:700, color:'var(--color-text-200)', letterSpacing:'-0.02em' }}>ActionShell</span>
       </div>
       <div className="spinner" style={{ width:'20px', height:'20px' }} />

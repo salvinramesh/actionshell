@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../store/auth.store'
 import './Auth.css'
+// @ts-ignore
+import logo from '../../logo.png'
 
 interface Props { onComplete: () => void }
 
@@ -79,12 +81,7 @@ export default function SetupWizard({ onComplete }: Props) {
 function AppLogo() {
   return (
     <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px'}}>
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="10" fill="url(#g1)"/>
-        <path d="M10 26l6-10 6 10M17 23h6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M25 14l5 5-5 5" stroke="#00D4FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <defs><linearGradient id="g1" x1="0" y1="0" x2="40" y2="40"><stop stopColor="#1E2A44"/><stop offset="1" stopColor="#0A0E1A"/></linearGradient></defs>
-      </svg>
+      <img src={logo} alt="ActionShell" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
       <span style={{fontSize:'24px',fontWeight:800,color:'var(--color-text-100)',letterSpacing:'-0.03em'}}>ActionShell</span>
     </div>
   )

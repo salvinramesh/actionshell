@@ -3,6 +3,8 @@ import { Minus, Maximize2, X, Terminal, Settings, LayoutDashboard, Lock, Moon, S
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import './Layout.css'
+// @ts-ignore
+import logo from '../../logo.png'
 
 export default function TitleBar() {
   const { session, setLocked } = useAuthStore()
@@ -24,10 +26,7 @@ export default function TitleBar() {
           </button>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:'6px',opacity:0.6}}>
-          <svg width="14" height="14" viewBox="0 0 40 40" fill="none">
-            <path d="M8 28l8-14 8 14M18 24h8" stroke="#00D4FF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M26 14l6 6-6 6" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <img src={logo} alt="ActionShell" style={{ width: '14px', height: '14px', objectFit: 'contain' }} />
           <span style={{fontSize:'var(--text-xs)',fontWeight:700,color:'var(--color-text-400)',letterSpacing:'-0.01em'}}>ActionShell</span>
         </div>
       </div>
