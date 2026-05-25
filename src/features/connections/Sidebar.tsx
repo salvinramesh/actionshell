@@ -7,6 +7,8 @@ import { useTerminalStore } from '../../store/terminal.store'
 import type { SSHHost, HostGroup } from '../../../shared/types'
 import { v4 as uuidv4 } from 'uuid'
 import '../layout/Layout.css'
+// @ts-ignore
+import logo from '../../logo.png'
 
 export default function Sidebar() {
   const { session } = useAuthStore()
@@ -64,12 +66,7 @@ export default function Sidebar() {
       <div className="sidebar-header">
         {!sidebarCollapsed && (
           <div className="sidebar-logo">
-            <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
-              <rect width="40" height="40" rx="8" fill="url(#gs)"/>
-              <path d="M9 27l7-12 7 12M18 23h7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M25 13l6 6-6 6" stroke="#00D4FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <defs><linearGradient id="gs" x1="0" y1="0" x2="40" y2="40"><stop stopColor="#1E2A44"/><stop offset="1" stopColor="#0A0E1A"/></linearGradient></defs>
-            </svg>
+            <img src={logo} alt="ActionShell" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
             <span className="sidebar-logo-text">ActionShell</span>
           </div>
         )}

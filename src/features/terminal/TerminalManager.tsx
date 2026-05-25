@@ -6,6 +6,8 @@ import TerminalPane from './TerminalPane'
 import SFTPPanel from '../sftp/SFTPPanel'
 import { v4 as uuidv4 } from 'uuid'
 import './Terminal.css'
+// @ts-ignore
+import logo from '../../logo.png'
 
 export default function TerminalManager() {
   const { tabs, activeTabId, setActiveTab, removeTab, toggleSftp, addTab, broadcastActive, setBroadcastActive } = useTerminalStore()
@@ -113,12 +115,7 @@ function TerminalEmptyState() {
     <div className="terminal-empty">
       <div className="terminal-empty-inner animate-fadeIn">
         <div className="terminal-empty-logo">
-          <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
-            <rect width="40" height="40" rx="10" fill="url(#ge)"/>
-            <path d="M9 27l7-12 7 12M18 23h7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M25 13l6 6-6 6" stroke="#00D4FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <defs><linearGradient id="ge" x1="0" y1="0" x2="40" y2="40"><stop stopColor="#1E2A44"/><stop offset="1" stopColor="#0A0E1A"/></linearGradient></defs>
-          </svg>
+          <img src={logo} alt="ActionShell" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
         </div>
         <h2>ActionShell</h2>
         <p>Select a server from the sidebar to connect, or open a local shell</p>
