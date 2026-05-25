@@ -153,9 +153,13 @@
   --color-base-600: #BEC9EB;
   --color-base-550: #ADBAe3;
   --color-base-500: #9AAAD6;
+  --color-base-450: #8BA0CE;
   --color-base-400: #7B90C4;
+  --color-base-350: #6275A4;
+  --color-base-300: #4B619A;
   
   --color-text-100: #0A0E1A;
+  --color-text-800: #1D2338;
   --color-text-200: #1A2238;
   --color-text-300: #2A3252;
   --color-text-400: #3B466C;

@@ -5,6 +5,7 @@ import SetupWizard from './features/auth/SetupWizard'
 import LoginScreen from './features/auth/LoginScreen'
 import LockScreen from './features/auth/LockScreen'
 import MainLayout from './features/layout/MainLayout'
+import TitleBar from './features/layout/TitleBar'
 
 type AppState = 'loading' | 'setup' | 'login' | 'locked' | 'app'
 
@@ -14,7 +15,20 @@ export default function App() {
   const [appState, setAppState] = useState<AppState>('loading')
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
+    // Sync native theme with main process
+    window.actionshell.theme.set(theme)
+
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const updateSystemTheme = () => {
+        document.documentElement.setAttribute('data-theme', mediaQuery.matches ? 'dark' : 'light')
+      }
+      updateSystemTheme()
+      mediaQuery.addEventListener('change', updateSystemTheme)
+      return () => mediaQuery.removeEventListener('change', updateSystemTheme)
+    } else {
+      document.documentElement.setAttribute('data-theme', theme)
+    }
   }, [theme])
 
   useEffect(() => {
@@ -41,16 +55,32 @@ export default function App() {
     }
   }, [session, isLocked])
 
-  if (appState === 'loading') return <AppLoader />
-  if (appState === 'setup') return <SetupWizard onComplete={() => setAppState('login')} />
-  if (appState === 'login') return <LoginScreen onLogin={() => setAppState('app')} />
-  if (appState === 'locked') return <LockScreen onUnlock={() => setAppState('app')} />
-  return <MainLayout />
+  let content
+  if (appState === 'loading') {
+    content = <AppLoader />
+  } else if (appState === 'setup') {
+    content = <SetupWizard onComplete={() => setAppState('login')} />
+  } else if (appState === 'login') {
+    content = <LoginScreen onLogin={() => setAppState('app')} />
+  } else if (appState === 'locked') {
+    content = <LockScreen onUnlock={() => setAppState('app')} />
+  } else {
+    content = <MainLayout />
+  }
+
+  return (
+    <div className="app-root">
+      <TitleBar />
+      <div className="app-body">
+        {content}
+      </div>
+    </div>
+  )
 }
 
 function AppLoader() {
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--color-base-800)', flexDirection:'column', gap:'20px' }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', width:'100%', flex:1, background:'var(--color-base-800)', flexDirection:'column', gap:'20px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
           <rect width="32" height="32" rx="8" fill="url(#grad)"/>

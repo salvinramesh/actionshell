@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 type View = 'terminal' | 'admin' | 'settings' | 'tunnels'
-type Theme = 'dark' | 'light'
+type Theme = 'dark' | 'light' | 'system'
 
 interface UIStore {
   theme: Theme
@@ -38,7 +38,7 @@ export interface Notification {
 }
 
 export const useUIStore = create<UIStore>((set) => ({
-  theme: 'dark',
+  theme: (localStorage.getItem('actionshell_theme') as Theme) || 'dark',
   currentView: 'terminal',
   sidebarCollapsed: false,
   showSnippetPalette: false,
@@ -52,7 +52,13 @@ export const useUIStore = create<UIStore>((set) => ({
 
   setTheme: (theme) => {
     set({ theme })
-    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('actionshell_theme', theme)
+    if (theme === 'system') {
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    } else {
+      document.documentElement.setAttribute('data-theme', theme)
+    }
   },
 
   setView: (currentView) => set({ currentView }),

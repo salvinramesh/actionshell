@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #0A0E1A;
+  background: var(--color-base-900);
 }
 
 .terminal-toolbar {

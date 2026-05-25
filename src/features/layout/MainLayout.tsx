@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import { useConnectionsStore } from '../../store/connections.store'
-import TitleBar from './TitleBar'
 import Sidebar from '../connections/Sidebar'
 import TerminalManager from '../terminal/TerminalManager'
 import AdminDashboard from '../admin/AdminDashboard'
@@ -57,20 +56,17 @@ export default function MainLayout() {
   }, [])
 
   return (
-    <div className="app-root">
-      <TitleBar />
-      <div className="app-body">
-        <Sidebar />
-        <main className="main-content">
-          {currentView === 'terminal' && <TerminalManager />}
-          {currentView === 'admin' && <AdminDashboard />}
-          {currentView === 'settings' && <SettingsPanel />}
-          {currentView === 'tunnels' && <TunnelsManager />}
-        </main>
-      </div>
+    <>
+      <Sidebar />
+      <main className="main-content">
+        {currentView === 'terminal' && <TerminalManager />}
+        {currentView === 'admin' && <AdminDashboard />}
+        {currentView === 'settings' && <SettingsPanel />}
+        {currentView === 'tunnels' && <TunnelsManager />}
+      </main>
       {showConnectionForm && <ConnectionForm />}
       {showSnippetPalette && <SnippetPalette />}
       <NotificationStack />
-    </div>
+    </>
   )
 }

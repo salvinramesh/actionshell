@@ -33,36 +33,42 @@ export default function TitleBar() {
       </div>
 
       <div className="titlebar-right" style={{WebkitAppRegion:'no-drag'} as any}>
-        <button className={`titlebar-btn ${currentView==='terminal'?'active':''}`}
-          style={currentView==='terminal'?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
-          onClick={() => setView('terminal')} title="Terminal">
-          <Terminal size={14} />
-        </button>
-        {isAdmin && (
-          <button className={`titlebar-btn`}
-            style={currentView==='admin'?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
-            onClick={() => setView('admin')} title="Admin Dashboard">
-            <LayoutDashboard size={14} />
-          </button>
+        {session && (
+          <>
+            <button className={`titlebar-btn ${currentView==='terminal'?'active':''}`}
+              style={currentView==='terminal'?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
+              onClick={() => setView('terminal')} title="Terminal">
+              <Terminal size={14} />
+            </button>
+            {isAdmin && (
+              <button className={`titlebar-btn`}
+                style={currentView==='admin'?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
+                onClick={() => setView('admin')} title="Admin Dashboard">
+                <LayoutDashboard size={14} />
+              </button>
+            )}
+            <button className={`titlebar-btn ${currentView==='tunnels'?'active':''}`}
+              style={currentView==='tunnels'?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
+              onClick={() => setView('tunnels')} title="Port Forwarding">
+              <Network size={14} />
+            </button>
+            <button className="titlebar-btn" onClick={() => setView('settings')} title="Settings">
+              <Settings size={14} />
+            </button>
+          </>
         )}
-        <button className={`titlebar-btn ${currentView==='tunnels'?'active':''}`}
-          style={currentView==='tunnels'?{background:'var(--color-accent-glow)',color:'var(--color-accent-500)'}:{}}
-          onClick={() => setView('tunnels')} title="Port Forwarding">
-          <Network size={14} />
-        </button>
-        <button className="titlebar-btn" onClick={() => setView('settings')} title="Settings">
-          <Settings size={14} />
-        </button>
         <button className="titlebar-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
           {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
         </button>
-        <button className="titlebar-btn" onClick={() => setLocked(true)} title="Lock session">
-          <Lock size={14} />
-        </button>
         {session && (
-          <div className="user-avatar" style={{width:'22px',height:'22px',fontSize:'9px'}}>
-            {session.name ? session.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'AS'}
-          </div>
+          <>
+            <button className="titlebar-btn" onClick={() => setLocked(true)} title="Lock session">
+              <Lock size={14} />
+            </button>
+            <div className="user-avatar" style={{width:'22px',height:'22px',fontSize:'9px'}}>
+              {session.name ? session.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'AS'}
+            </div>
+          </>
         )}
       </div>
     </div>
