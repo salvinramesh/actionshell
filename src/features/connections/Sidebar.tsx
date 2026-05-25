@@ -224,6 +224,17 @@ function HostGroup({ label, groupId, hosts, expanded, onToggle, onConnect, selec
 
 function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: boolean; onConnect:(h:SSHHost)=>void }) {
   const { setShowConnectionForm } = useUIStore()
+  const tabs = useTerminalStore(s => s.tabs)
+  const hostTabs = tabs.filter(t => t.hostId === host.id)
+
+  let status: 'connected' | 'connecting' | 'error' | 'disconnected' = 'disconnected'
+  if (hostTabs.some(t => t.status === 'connected')) {
+    status = 'connected'
+  } else if (hostTabs.some(t => t.status === 'connecting')) {
+    status = 'connecting'
+  } else if (hostTabs.some(t => t.status === 'error')) {
+    status = 'error'
+  }
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -291,7 +302,7 @@ function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: bool
 
   return (
     <div className={`host-card ${selected?'active':''}`} onClick={() => onConnect(host)}>
-      <div className={`status-dot ${host.status || 'disconnected'}`} />
+      <div className={`status-dot ${status}`} />
       <div className="host-card-info">
         <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
           <div className="host-card-name">{host.name}</div>

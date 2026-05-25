@@ -88,8 +88,11 @@ export default function TerminalPane({ tab, active }: Props) {
   const xtermRef = useRef<XTerm | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const { updateTab } = useTerminalStore()
-  const spawnedRef = useRef(false)
   const [dismissed, setDismissed] = useState(false)
+  const tabRef = useRef(tab)
+  tabRef.current = tab
+
+  const spawnedSessions = useRef<Set<string>>(new Set())
 
   const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive } = useUIStore()
 
@@ -127,6 +130,7 @@ export default function TerminalPane({ tab, active }: Props) {
     }
   }, [termTheme, termFontSize, termFontFamily, termFontColor, termBgColor])
 
+  // Mounting effect: initialize XTerm, fit addon, resize listener, user input, context menu
   useEffect(() => {
     if (!containerRef.current || xtermRef.current) return
 
@@ -163,9 +167,8 @@ export default function TerminalPane({ tab, active }: Props) {
     xtermRef.current = xterm
     fitRef.current = fit
 
-    // Send input
+    // Send input - uses tabRef to avoid closure stale-state issues
     xterm.onData((data) => {
-      // Keystroke broadcasting logic
       const terminalStore = useTerminalStore.getState()
       if (terminalStore.broadcastActive) {
         terminalStore.tabs.forEach(t => {
@@ -174,11 +177,11 @@ export default function TerminalPane({ tab, active }: Props) {
           }
         })
       } else {
-        window.actionshell.terminal.input(tab.sessionId, data, tab.isLocal || false)
+        window.actionshell.terminal.input(tabRef.current.sessionId, data, tabRef.current.isLocal || false)
       }
     })
 
-    // Select + right click to copy, right click to paste (Windows cmd behavior)
+    // Select + right click to copy, right click to paste (Windows cmd behavior) - uses tabRef to avoid closure stale-state issues
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault()
       if (xterm.hasSelection()) {
@@ -196,7 +199,7 @@ export default function TerminalPane({ tab, active }: Props) {
                 }
               })
             } else {
-              window.actionshell.terminal.input(tab.sessionId, text, tab.isLocal || false)
+              window.actionshell.terminal.input(tabRef.current.sessionId, text, tabRef.current.isLocal || false)
             }
           }
         }).catch(() => {})
@@ -208,9 +211,34 @@ export default function TerminalPane({ tab, active }: Props) {
       container.addEventListener('contextmenu', handleContextMenu)
     }
 
+    // Resize observer - uses tabRef to avoid closure stale-state issues
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        fit.fit()
+        const { cols, rows } = xterm
+        window.actionshell.terminal.resize(tabRef.current.sessionId, cols, rows, tabRef.current.isLocal || false)
+      } catch {}
+    })
+    if (containerRef.current) resizeObserver.observe(containerRef.current)
+
+    return () => {
+      if (container) {
+        container.removeEventListener('contextmenu', handleContextMenu)
+      }
+      resizeObserver.disconnect()
+    }
+  }, [])
+
+  // Dynamic session subscription & spawn effect: runs every time sessionId or status changes
+  useEffect(() => {
+    if (!xtermRef.current) return
+
+    const xterm = xtermRef.current
+    const sessionId = tab.sessionId
+
     // Terminal output listener
-    const removeOutput = window.actionshell.terminal.onOutput(({ sessionId, data }) => {
-      if (sessionId === tab.sessionId) {
+    const removeOutput = window.actionshell.terminal.onOutput(({ sessionId: eventSessionId, data }) => {
+      if (eventSessionId === sessionId) {
         if (useUIStore.getState().logHighlightActive) {
           xterm.write(highlightLogs(data))
         } else {
@@ -220,41 +248,31 @@ export default function TerminalPane({ tab, active }: Props) {
     })
 
     // Terminal close listener
-    const removeClose = window.actionshell.terminal.onClose(({ sessionId }) => {
-      if (sessionId === tab.sessionId) {
+    const removeClose = window.actionshell.terminal.onClose(({ sessionId: eventSessionId }) => {
+      if (eventSessionId === sessionId) {
         xterm.write('\r\n\x1b[90m[Connection closed]\x1b[0m\r\n')
         updateTab(tab.id, { status: 'closed' })
       }
     })
 
     // Terminal error listener
-    const removeError = window.actionshell.terminal.onError(({ sessionId, error }) => {
-      if (sessionId === tab.sessionId) {
+    const removeError = window.actionshell.terminal.onError(({ sessionId: eventSessionId, error }) => {
+      if (eventSessionId === sessionId) {
         xterm.write(`\r\n\x1b[31m[Error: ${error}]\x1b[0m\r\n`)
         updateTab(tab.id, { status: 'error' })
       }
     })
 
-    // Resize observer
-    const resizeObserver = new ResizeObserver(() => {
-      try {
-        fit.fit()
-        const { cols, rows } = xterm
-        window.actionshell.terminal.resize(tab.sessionId, cols, rows, tab.isLocal || false)
-      } catch {}
-    })
-    if (containerRef.current) resizeObserver.observe(containerRef.current)
-
-    // Spawn the session
-    if (!spawnedRef.current) {
-      spawnedRef.current = true
+    // Spawn the session if not already spawned for this specific sessionId
+    if (!spawnedSessions.current.has(sessionId) && tab.status === 'connecting') {
+      spawnedSessions.current.add(sessionId)
       const { cols, rows } = xterm
       if (tab.isLocal) {
-        window.actionshell.terminal.spawnLocal(tab.sessionId, undefined, cols, rows)
+        window.actionshell.terminal.spawnLocal(sessionId, undefined, cols, rows)
           .then(res => updateTab(tab.id, { status: res.success ? 'connected' : 'error' }))
       } else if (tab.hostId) {
-        xterm.write(`\x1b[90mConnecting to ${tab.hostname}...\x1b[0m\r\n`)
-        window.actionshell.terminal.spawnSSH(tab.sessionId, tab.hostId, cols, rows, '')
+        xterm.write(`\r\n\x1b[90mConnecting to ${tab.hostname}...\x1b[0m\r\n`)
+        window.actionshell.terminal.spawnSSH(sessionId, tab.hostId, cols, rows, '')
           .then(res => updateTab(tab.id, { status: res.success ? 'connected' : 'error' }))
           .catch(err => {
             xterm.write(`\r\n\x1b[31mConnection failed: ${err.message}\x1b[0m\r\n`)
@@ -264,15 +282,11 @@ export default function TerminalPane({ tab, active }: Props) {
     }
 
     return () => {
-      if (container) {
-        container.removeEventListener('contextmenu', handleContextMenu)
-      }
       removeOutput()
       removeClose()
       removeError()
-      resizeObserver.disconnect()
     }
-  }, [])
+  }, [tab.sessionId, tab.status])
 
   // Focus when active
   useEffect(() => {
