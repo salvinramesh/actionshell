@@ -11,23 +11,33 @@ import type { IpcResponse } from '../../../shared/types'
 export function registerTerminalIPC(mainWindow: BrowserWindow) {
   // Forward terminal output to renderer
   sshEvents.on('terminal:output', ({ sessionId, data }) => {
-    mainWindow.webContents.send('terminal:output', { sessionId, data })
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:output', { sessionId, data })
+    }
   })
   
   sshEvents.on('terminal:close', ({ sessionId }) => {
-    mainWindow.webContents.send('terminal:close', { sessionId })
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:close', { sessionId })
+    }
   })
   
   sshEvents.on('terminal:error', ({ sessionId, error }) => {
-    mainWindow.webContents.send('terminal:error', { sessionId, error })
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:error', { sessionId, error })
+    }
   })
   
   ptyEvents.on('terminal:output', ({ sessionId, data }) => {
-    mainWindow.webContents.send('terminal:output', { sessionId, data })
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:output', { sessionId, data })
+    }
   })
   
   ptyEvents.on('terminal:close', ({ sessionId }) => {
-    mainWindow.webContents.send('terminal:close', { sessionId })
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:close', { sessionId })
+    }
   })
 
   // SSH terminal

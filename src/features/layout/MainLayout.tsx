@@ -59,7 +59,9 @@ export default function MainLayout() {
     <>
       <Sidebar />
       <main className="main-content">
-        {currentView === 'terminal' && <TerminalManager />}
+        <div style={{ display: currentView === 'terminal' ? 'flex' : 'none', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+          <TerminalManager />
+        </div>
         {currentView === 'admin' && <AdminDashboard />}
         {currentView === 'settings' && <SettingsPanel />}
         {currentView === 'tunnels' && <TunnelsManager />}

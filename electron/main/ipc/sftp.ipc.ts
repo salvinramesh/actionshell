@@ -10,7 +10,9 @@ import type { IpcResponse } from '../../../shared/types'
 export function registerSFTPIPC(mainWindow: BrowserWindow) {
   // Forward transfer progress to renderer
   sftpEvents.on('transfer:progress', (data) => {
-    mainWindow.webContents.send('sftp:transfer:progress', data)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('sftp:transfer:progress', data)
+    }
   })
 
   ipcMain.handle('sftp:connect', async (_, { sessionId, hostId }): Promise<IpcResponse> => {
