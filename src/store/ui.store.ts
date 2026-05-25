@@ -14,6 +14,8 @@ interface UIStore {
   termTheme: string
   termFontSize: number
   termFontFamily: string
+  termFontColor: string
+  termBgColor: string
   logHighlightActive: boolean
 
   setTheme: (t: Theme) => void
@@ -26,6 +28,8 @@ interface UIStore {
   setTermTheme: (t: string) => void
   setTermFontSize: (s: number) => void
   setTermFontFamily: (f: string) => void
+  setTermFontColor: (c: string) => void
+  setTermBgColor: (c: string) => void
   setLogHighlightActive: (v: boolean) => void
 }
 
@@ -45,10 +49,12 @@ export const useUIStore = create<UIStore>((set) => ({
   showConnectionForm: false,
   editingHostId: null,
   notifications: [],
-  termTheme: 'dark',
-  termFontSize: 13,
-  termFontFamily: "'JetBrains Mono', monospace",
-  logHighlightActive: true,
+  termTheme: localStorage.getItem('actionshell_term_theme') || 'dark',
+  termFontSize: parseInt(localStorage.getItem('actionshell_term_font_size') || '13'),
+  termFontFamily: localStorage.getItem('actionshell_term_font_family') || "'JetBrains Mono', monospace",
+  termFontColor: localStorage.getItem('actionshell_term_font_color') || '#CDD6F4',
+  termBgColor: localStorage.getItem('actionshell_term_bg_color') || '#0A0E1A',
+  logHighlightActive: localStorage.getItem('actionshell_log_highlight_active') !== 'false',
 
   setTheme: (theme) => {
     set({ theme })
@@ -83,8 +89,28 @@ export const useUIStore = create<UIStore>((set) => ({
     notifications: s.notifications.filter(n => n.id !== id)
   })),
 
-  setTermTheme: (termTheme) => set({ termTheme }),
-  setTermFontSize: (termFontSize) => set({ termFontSize }),
-  setTermFontFamily: (termFontFamily) => set({ termFontFamily }),
-  setLogHighlightActive: (logHighlightActive) => set({ logHighlightActive }),
+  setTermTheme: (termTheme) => {
+    set({ termTheme })
+    localStorage.setItem('actionshell_term_theme', termTheme)
+  },
+  setTermFontSize: (termFontSize) => {
+    set({ termFontSize })
+    localStorage.setItem('actionshell_term_font_size', String(termFontSize))
+  },
+  setTermFontFamily: (termFontFamily) => {
+    set({ termFontFamily })
+    localStorage.setItem('actionshell_term_font_family', termFontFamily)
+  },
+  setTermFontColor: (termFontColor) => {
+    set({ termFontColor })
+    localStorage.setItem('actionshell_term_font_color', termFontColor)
+  },
+  setTermBgColor: (termBgColor) => {
+    set({ termBgColor })
+    localStorage.setItem('actionshell_term_bg_color', termBgColor)
+  },
+  setLogHighlightActive: (logHighlightActive) => {
+    set({ logHighlightActive })
+    localStorage.setItem('actionshell_log_highlight_active', String(logHighlightActive))
+  },
 }))

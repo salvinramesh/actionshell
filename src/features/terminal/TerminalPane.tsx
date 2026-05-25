@@ -88,25 +88,40 @@ export default function TerminalPane({ tab, active }: Props) {
   const { updateTab } = useTerminalStore()
   const spawnedRef = useRef(false)
 
-  const { termTheme, termFontSize, termFontFamily, logHighlightActive } = useUIStore()
+  const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive } = useUIStore()
 
   // Update configuration dynamically
   useEffect(() => {
     if (xtermRef.current) {
-      xtermRef.current.options.theme = THEMES[termTheme] || THEMES.dark
+      let activeTheme = { ...(THEMES[termTheme] || THEMES.dark) }
+      if (termTheme === 'custom') {
+        activeTheme.background = termBgColor
+        activeTheme.foreground = termFontColor
+        activeTheme.cursor = termFontColor
+      }
+      xtermRef.current.options.theme = activeTheme
       xtermRef.current.options.fontSize = termFontSize
       xtermRef.current.options.fontFamily = termFontFamily
       try {
         fitRef.current?.fit()
-      } catch {}
+      } catch (e) {
+        console.error('Fit error', e)
+      }
     }
-  }, [termTheme, termFontSize, termFontFamily])
+  }, [termTheme, termFontSize, termFontFamily, termFontColor, termBgColor])
 
   useEffect(() => {
     if (!containerRef.current || xtermRef.current) return
 
+    let initialTheme = { ...(THEMES[termTheme] || THEMES.dark) }
+    if (termTheme === 'custom') {
+      initialTheme.background = termBgColor
+      initialTheme.foreground = termFontColor
+      initialTheme.cursor = termFontColor
+    }
+
     const xterm = new XTerm({
-      theme: THEMES[termTheme] || THEMES.dark,
+      theme: initialTheme,
       fontFamily: termFontFamily,
       fontSize: termFontSize,
       fontWeight: '400',

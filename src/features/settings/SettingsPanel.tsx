@@ -10,9 +10,40 @@ export default function SettingsPanel() {
     termTheme, setTermTheme,
     termFontSize, setTermFontSize,
     termFontFamily, setTermFontFamily,
+    termFontColor, setTermFontColor,
+    termBgColor, setTermBgColor,
     logHighlightActive, setLogHighlightActive
   } = useUIStore()
   const { session, logout } = useAuthStore()
+
+  const THEME_COLORS: Record<string, { background: string; foreground: string }> = {
+    dark: { background: '#0A0E1A', foreground: '#CDD6F4' },
+    light: { background: '#F8FAFF', foreground: '#2A3252' },
+    nord: { background: '#2e3440', foreground: '#d8dee9' },
+    dracula: { background: '#282a36', foreground: '#f8f8f2' },
+    solarized: { background: '#002b36', foreground: '#839496' }
+  }
+
+  const handleTermThemeChange = (newTheme: string) => {
+    setTermTheme(newTheme)
+    if (newTheme !== 'custom') {
+      const colors = THEME_COLORS[newTheme]
+      if (colors) {
+        setTermBgColor(colors.background)
+        setTermFontColor(colors.foreground)
+      }
+    }
+  }
+
+  const handleCustomBgChange = (color: string) => {
+    setTermBgColor(color)
+    setTermTheme('custom')
+  }
+
+  const handleCustomFontChange = (color: string) => {
+    setTermFontColor(color)
+    setTermTheme('custom')
+  }
   const [tab, setTab] = useState<'appearance'|'terminal'|'keys'|'snippets'|'security'>('appearance')
   const [autoLock, setAutoLock] = useState(30)
   
@@ -135,13 +166,30 @@ export default function SettingsPanel() {
             <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
               <div className="form-group">
                 <label className="form-label">Terminal Theme</label>
-                <select className="form-input form-select" value={termTheme} onChange={e=>setTermTheme(e.target.value)}>
+                <select className="form-input form-select" value={termTheme} onChange={e=>handleTermThemeChange(e.target.value)}>
                   <option value="dark">Default Dark</option>
                   <option value="nord">Nord Theme</option>
                   <option value="dracula">Dracula Theme</option>
                   <option value="solarized">Solarized Dark</option>
                   <option value="light">Light Theme</option>
+                  <option value="custom">Custom Theme</option>
                 </select>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+                <div className="form-group">
+                  <label className="form-label">Terminal Background Color</label>
+                  <div style={{display:'flex',gap:'8px',alignItems:'center',marginTop:'6px'}}>
+                    <input type="color" value={termBgColor} onChange={e=>handleCustomBgChange(e.target.value)} style={{width:'32px',height:'32px',border:'none',padding:0,background:'none',cursor:'pointer',borderRadius:'4px'}}/>
+                    <input className="form-input mono" type="text" value={termBgColor} onChange={e=>handleCustomBgChange(e.target.value)} style={{flex:1,fontSize:'var(--text-xs)',height:'32px'}}/>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Terminal Font Color</label>
+                  <div style={{display:'flex',gap:'8px',alignItems:'center',marginTop:'6px'}}>
+                    <input type="color" value={termFontColor} onChange={e=>handleCustomFontChange(e.target.value)} style={{width:'32px',height:'32px',border:'none',padding:0,background:'none',cursor:'pointer',borderRadius:'4px'}}/>
+                    <input className="form-input mono" type="text" value={termFontColor} onChange={e=>handleCustomFontChange(e.target.value)} style={{flex:1,fontSize:'var(--text-xs)',height:'32px'}}/>
+                  </div>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Font Size</label>
@@ -166,8 +214,8 @@ export default function SettingsPanel() {
                   Enable Live Log Triggers & Highlighting (ERROR, SUCCESS, IP addresses)
                 </label>
               </div>
-              <div style={{background:termTheme==='light'?'#F8FAFF':'#0A0E1A',border:'1px solid var(--color-border-subtle)',borderRadius:'var(--radius-lg)',padding:'16px',fontFamily:termFontFamily,fontSize:`${termFontSize}px`,color:termTheme==='light'?'#2A3252':'#CDD6F4'}}>
-                <span style={{color:'#A6E3A1'}}>user@server</span><span style={{color:termTheme==='light'?'#2A3252':'#CDD6F4'}}>:</span><span style={{color:'#89B4FA'}}>~/projects</span><span style={{color:'#00D4FF'}}> $ </span><span>ls -la</span>
+              <div style={{background:termBgColor,border:'1px solid var(--color-border-subtle)',borderRadius:'var(--radius-lg)',padding:'16px',fontFamily:termFontFamily,fontSize:`${termFontSize}px`,color:termFontColor}}>
+                <span style={{color:'#A6E3A1'}}>user@server</span><span style={{color:termFontColor}}>:</span><span style={{color:'#89B4FA'}}>~/projects</span><span style={{color:'#00D4FF'}}> $ </span><span>ls -la</span>
               </div>
             </div>
           </div>
