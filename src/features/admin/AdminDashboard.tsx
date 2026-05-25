@@ -286,7 +286,10 @@ function AddUserModal({ onCreated }: { onCreated: () => void }) {
                 <div className="form-group"><label className="form-label">Password</label><input className="form-input" type="password" required value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
                 <div className="form-group"><label className="form-label">Role</label>
                   <select className="form-input form-select" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value as any}))}>
-                    <option value="admin">Admin</option><option value="standard">Standard User</option><option value="readonly">Read-only</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="standard">Standard User</option>
+                    <option value="readonly">Read-only</option>
                   </select>
                 </div>
                 {error && <p className="form-error">{error}</p>}
@@ -344,6 +347,7 @@ function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () =
             <div className="form-group">
               <label className="form-label">Role</label>
               <select className="form-input form-select" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as any }))}>
+                <option value="super_admin">Super Admin</option>
                 <option value="admin">Admin</option>
                 <option value="standard">Standard User</option>
                 <option value="readonly">Read-only</option>

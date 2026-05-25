@@ -260,6 +260,33 @@ function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: bool
     }
   }
 
+  const toggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const { session } = useAuthStore.getState()
+      if (!session) return
+      const res = await window.actionshell.connections.update(host.id, { isFavorite: !host.isFavorite }, session.userId)
+      if (res.success) {
+        const { loadHosts } = useConnectionsStore.getState()
+        await loadHosts(session.userId, session.role)
+      } else {
+        const { addNotification } = useUIStore.getState()
+        addNotification({
+          type: 'error',
+          title: 'Favorite toggle failed',
+          message: res.error || 'Failed to update connection'
+        })
+      }
+    } catch (err: any) {
+      const { addNotification } = useUIStore.getState()
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: err.message || 'An error occurred'
+      })
+    }
+  }
+
   const isOld = Date.now() - new Date(host.createdAt).getTime() > 90 * 24 * 60 * 60 * 1000
 
   return (
@@ -277,6 +304,10 @@ function HostCard({ host, selected, onConnect }: { host: SSHHost; selected: bool
         <div className="host-card-meta">{host.username ? `${host.username}@` : ''}{host.hostname}:{host.port}</div>
       </div>
       <div className="host-card-actions">
+        <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px',color:host.isFavorite ? 'var(--color-warning-500)' : 'var(--color-text-400)'}}
+          onClick={toggleFavorite} title={host.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}>
+          <Star size={11} fill={host.isFavorite ? 'var(--color-warning-500)' : 'none'} />
+        </button>
         <button className="btn btn-icon" style={{width:'20px',height:'20px',padding:'2px',color:'var(--color-text-400)'}}
           onClick={e => { e.stopPropagation(); setShowConnectionForm(true, host.id) }} title="Edit">
           <Pencil size={11} />
