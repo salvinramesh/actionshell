@@ -5,6 +5,7 @@ import fs from 'fs'
 import { api } from './api.service'
 import { getCredentials, getDecryptedCredential } from './connections.service'
 import { writeAuditLog } from './audit.service'
+import { connectClient } from './ssh.service'
 import type { SFTPEntry } from '../../../shared/types'
 
 interface SFTPSession {
@@ -18,45 +19,12 @@ interface SFTPSession {
 const sftpSessions = new Map<string, SFTPSession>()
 export const sftpEvents = new EventEmitter()
 
-async function buildConnectConfig(hostId: string): Promise<any> {
-  const hostsRes = await api.get<{ hosts: any[] }>('/hosts')
-  if (!hostsRes.ok) throw new Error('Failed to fetch hosts')
-
-  const host = hostsRes.data.hosts.find((h: any) => h.id === hostId)
-  if (!host) throw new Error('Host not found')
-  
-  const config: any = {
-    host: host.hostname,
-    port: host.port || 22,
-    username: host.username || 'root',
-    readyTimeout: 30000,
-  }
-  
-  const creds = await getCredentials(hostId)
-  if (creds.length > 0) {
-    const decrypted = await getDecryptedCredential(creds[0].id)
-    if (decrypted) {
-      if (decrypted.type === 'password') {
-        config.password = decrypted.value
-      } else {
-        config.privateKey = decrypted.value
-        if (decrypted.passphrase) {
-          config.passphrase = decrypted.passphrase
-        }
-      }
-    }
-  }
-  
-  return config
-}
-
 /**
  * Open an SFTP session
  */
 export async function connectSFTP(sessionId: string, hostId: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
     try {
-      const config = await buildConnectConfig(hostId)
       const client = new Client()
       
       client.on('ready', () => {
@@ -90,7 +58,7 @@ export async function connectSFTP(sessionId: string, hostId: string): Promise<vo
       })
       
       client.on('error', reject)
-      client.connect(config)
+      connectClient(hostId, client)
       
     } catch (err) {
       reject(err)

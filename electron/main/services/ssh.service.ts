@@ -21,16 +21,20 @@ const recordings = new Map<string, { time: number; data: string }[]>()
 
 export const sshEvents = new EventEmitter()
 
-/**
- * Build SSH connect config from host + credentials (fetched from sync server)
- */
-export async function buildConnectConfig(hostId: string): Promise<ConnectConfig & { hostName: string }> {
-  // Fetch host info from server
+export async function getHostById(hostId: string): Promise<any> {
   const hostsRes = await api.get<{ hosts: any[] }>('/hosts')
   if (!hostsRes.ok) throw new Error('Failed to fetch hosts')
 
   const host = hostsRes.data.hosts.find((h: any) => h.id === hostId)
-  if (!host) throw new Error('Host not found')
+  if (!host) throw new Error(`Host not found: ${hostId}`)
+  return host
+}
+
+/**
+ * Build SSH connect config from host + credentials (fetched from sync server)
+ */
+export async function buildConnectConfig(hostId: string): Promise<ConnectConfig & { hostName: string }> {
+  const host = await getHostById(hostId)
 
   const config: ConnectConfig & { hostName: string } = {
     hostName: host.name,
@@ -60,13 +64,110 @@ export async function buildConnectConfig(hostId: string): Promise<ConnectConfig 
     }
   }
 
-  // Jump host (proxy)
-  if (host.jump_host_id) {
-    // TODO: ProxyJump implementation
-  }
-
   return config
 }
+
+/**
+ * Connect SSH Client recursively if jump host is configured
+ */
+export async function connectClient(hostId: string, client: Client, depth = 0): Promise<void> {
+  if (depth > 5) {
+    client.emit('error', new Error('Circular jump host connection detected or too many jumps (max 5)'))
+    return
+  }
+
+  try {
+    const host = await getHostById(hostId)
+
+    if (host.jump_host_id) {
+      const jumpClient = new Client()
+
+      let isConnecting = true
+
+      const onJumpError = (err: Error) => {
+        if (isConnecting) {
+          isConnecting = false
+          try { jumpClient.end() } catch {}
+          client.emit('error', new Error(`Jump host connection error: ${err.message}`))
+        }
+      }
+
+      const onJumpCloseBeforeReady = () => {
+        if (isConnecting) {
+          isConnecting = false
+          try { jumpClient.end() } catch {}
+          client.emit('error', new Error('Jump host connection closed before ready'))
+        }
+      }
+
+      jumpClient.once('error', onJumpError)
+      jumpClient.once('close', onJumpCloseBeforeReady)
+
+      jumpClient.once('ready', () => {
+        if (!isConnecting) return
+
+        jumpClient.forwardOut(
+          '127.0.0.1', 0,
+          host.hostname, host.port || 22,
+          async (err, stream) => {
+            if (err) {
+              isConnecting = false
+              try { jumpClient.end() } catch {}
+              client.emit('error', new Error(`ForwardOut failed through jump host: ${err.message}`))
+              return
+            }
+
+            if (!isConnecting) {
+              try { stream.end() } catch {}
+              try { jumpClient.end() } catch {}
+              return
+            }
+
+            isConnecting = false
+            jumpClient.removeListener('error', onJumpError)
+            jumpClient.removeListener('close', onJumpCloseBeforeReady)
+
+            // Setup bidirectional close/error mappings for the lifetime of the connection
+            const cleanUp = () => {
+              try { jumpClient.end() } catch {}
+            }
+            client.once('close', cleanUp)
+            client.once('error', cleanUp)
+
+            const onJumpClose = () => {
+              try { client.end() } catch {}
+            }
+            jumpClient.once('close', onJumpClose)
+            jumpClient.once('error', onJumpClose)
+
+            // Connect target client using the stream
+            try {
+              const config = await buildConnectConfig(hostId)
+              const targetConfig = {
+                ...config,
+                sock: stream
+              }
+              client.connect(targetConfig)
+            } catch (connErr: any) {
+              cleanUp()
+              client.emit('error', connErr)
+            }
+          }
+        )
+      })
+
+      // Initiate recursive connection to jump host
+      connectClient(host.jump_host_id, jumpClient, depth + 1)
+
+    } else {
+      const config = await buildConnectConfig(hostId)
+      client.connect(config)
+    }
+  } catch (err: any) {
+    client.emit('error', err)
+  }
+}
+
 
 /**
  * Spawn an SSH shell session
@@ -165,7 +266,7 @@ export async function spawnSSHSession(
         }
       })
       
-      client.connect(config)
+      connectClient(hostId, client)
       
     } catch (err) {
       reject(err)
@@ -237,7 +338,6 @@ export function getActiveSessions(): { sessionId: string; hostId: string; status
 export async function testConnection(hostId: string): Promise<{ success: boolean; error?: string; latency?: number }> {
   return new Promise(async (resolve) => {
     try {
-      const config = await buildConnectConfig(hostId)
       const client = new Client()
       const start = Date.now()
       
@@ -258,7 +358,10 @@ export async function testConnection(hostId: string): Promise<{ success: boolean
         resolve({ success: false, error: err.message })
       })
       
-      client.connect(config)
+      connectClient(hostId, client).catch((err) => {
+        clearTimeout(timeout)
+        resolve({ success: false, error: err.message })
+      })
     } catch (err: unknown) {
       resolve({ success: false, error: (err as Error).message })
     }

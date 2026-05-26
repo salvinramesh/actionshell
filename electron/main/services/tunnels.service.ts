@@ -1,6 +1,6 @@
 import net from 'net'
 import { Client } from 'ssh2'
-import { getSSHClientForHost, buildConnectConfig } from './ssh.service'
+import { getSSHClientForHost, connectClient } from './ssh.service'
 
 export interface Tunnel {
   id: string
@@ -38,11 +38,10 @@ export async function startTunnel(tunnel: Omit<Tunnel, 'status' | 'connectionsCo
   // If no active terminal session exists, create a standalone SSH client for tunneling
   if (!client) {
     client = new Client()
-    const config = await buildConnectConfig(tunnel.hostId)
     await new Promise<void>((resolve, reject) => {
       client!.on('ready', resolve)
       client!.on('error', reject)
-      client!.connect(config)
+      connectClient(tunnel.hostId, client!).catch(reject)
     })
     isStandaloneClient = true
   }
