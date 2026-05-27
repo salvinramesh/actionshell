@@ -3,6 +3,8 @@
  * All desktop ↔ server communication goes through here.
  */
 
+import { BrowserWindow } from 'electron'
+
 const API_BASE = process.env.MAIN_VITE_SYNC_SERVER_URL || process.env.VITE_SYNC_SERVER_URL || 'https://actionshell.actionfi.com/api'
 
 let authToken: string | null = null
@@ -42,6 +44,13 @@ async function request<T = unknown>(
       headers,
       body: body ? JSON.stringify(body) : undefined,
     })
+
+    if (res.status === 401) {
+      authToken = null
+      BrowserWindow.getAllWindows().forEach((win) => {
+        win.webContents.send('auth:expired')
+      })
+    }
 
     const data = await res.json().catch(() => ({}))
 

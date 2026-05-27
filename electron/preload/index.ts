@@ -14,6 +14,11 @@ const api = {
     mfaSetup: () => ipcRenderer.invoke('auth:mfa:setup'),
     mfaEnable: (secret: string, code: string) => ipcRenderer.invoke('auth:mfa:enable', { secret, code }),
     mfaDisable: () => ipcRenderer.invoke('auth:mfa:disable'),
+    onExpired: (callback: () => void) => {
+      const handler = () => callback()
+      ipcRenderer.on('auth:expired', handler)
+      return () => ipcRenderer.removeListener('auth:expired', handler)
+    },
   },
   
   // Admin - Users

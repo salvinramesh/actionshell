@@ -1,7 +1,7 @@
 import { api, setAuthToken, getAuthToken } from './api.service'
 import type { AuthSession, User, UserRole } from '../../../shared/types'
 
-const SESSION_DURATION_MS = 8 * 60 * 60 * 1000
+const SESSION_DURATION_MS = 14 * 24 * 60 * 60 * 1000
 
 // In-memory session (mirrors server JWT)
 let currentSession: AuthSession | null = null

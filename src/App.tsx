@@ -44,6 +44,15 @@ export default function App() {
       setAppState('login')
     }
     init()
+
+    // Redirect to login if session expires
+    const unsubscribe = window.actionshell.auth.onExpired(() => {
+      useAuthStore.getState().setSession(null)
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
