@@ -88,6 +88,10 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    env:
+      npm_config_msvs_version: "2022"
+      GYP_MSVS_VERSION: "2022"
+      MSVS_VERSION: "2022"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -152,12 +156,10 @@ jobs:
 
       - name: Rebuild node-pty for Electron (Windows)
         shell: bash
-        env:
-          GYP_MSVS_VERSION: "2022"
         run: |
           cd node_modules/node-pty
           npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 \
-            || npx @electron/rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
+            || npx electron-rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
 
       - name: Build Vite bundles
         run: npx electron-vite build
