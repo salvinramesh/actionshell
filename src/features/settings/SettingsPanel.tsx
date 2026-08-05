@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useUIStore } from '../../store/ui.store'
 import { useAuthStore } from '../../store/auth.store'
-import { Moon, Sun, Monitor, Terminal, Shield, Key, Lock, Zap } from 'lucide-react'
+import { Moon, Sun, Monitor, Terminal, Shield, Key, Lock, Zap, Info, RefreshCw, ExternalLink, CheckCircle, Sparkles } from 'lucide-react'
 import QRCode from 'qrcode'
 
 export default function SettingsPanel() {
@@ -46,7 +46,7 @@ export default function SettingsPanel() {
     setTermFontColor(color)
     setTermTheme('custom')
   }
-  const [tab, setTab] = useState<'appearance'|'terminal'|'keys'|'snippets'|'security'>('appearance')
+  const [tab, setTab] = useState<'appearance'|'terminal'|'keys'|'snippets'|'security'|'about'>('appearance')
   const [autoLock, setAutoLock] = useState(30)
   
   const [mfaEnabled, setMfaEnabled] = useState(false)
@@ -54,6 +54,26 @@ export default function SettingsPanel() {
   const [mfaCode, setMfaCode] = useState('')
   const [mfaError, setMfaError] = useState('')
   const [mfaSuccess, setMfaSuccess] = useState('')
+
+  const [appVersion, setAppVersion] = useState('1.3.9')
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [updateCheckStatus, setUpdateCheckStatus] = useState<{ hasUpdate: boolean; latestVersion: string; releaseUrl: string } | null>(null)
+
+  useEffect(() => {
+    window.actionshell.app.getVersion().then((v: string) => {
+      if (v) setAppVersion(v)
+    }).catch(() => {})
+  }, [])
+
+  const handleManualCheckUpdate = async () => {
+    setIsCheckingUpdate(true)
+    try {
+      const res = await window.actionshell.app.checkUpdate()
+      setUpdateCheckStatus(res)
+    } finally {
+      setIsCheckingUpdate(false)
+    }
+  }
 
   useEffect(() => {
     if (tab === 'security') {
@@ -346,6 +366,67 @@ export default function SettingsPanel() {
         )}
 
         {tab === 'snippets' && <SnippetManager />}
+
+        {tab === 'about' && (
+          <div className="animate-fadeIn" style={{ maxWidth: '540px' }}>
+            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-100)', marginBottom: '24px' }}>About & Updates</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: 'var(--color-base-750)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--color-border-subtle)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text-100)' }}>ActionShell Enterprise</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-400)', fontFamily: 'var(--font-mono)' }}>Installed Version: v{appVersion || '1.3.9'}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px', background: 'var(--color-base-750)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--color-border-subtle)' }}>
+                <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text-200)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <RefreshCw size={16} style={{ color: 'var(--color-accent-500)' }} /> Software Updates
+                </h3>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-400)', margin: 0, lineHeight: 1.5 }}>
+                  ActionShell automatically checks for new releases on GitHub on startup. You can also manually check for updates below.
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    disabled={isCheckingUpdate}
+                    onClick={handleManualCheckUpdate}
+                  >
+                    <RefreshCw size={13} className={isCheckingUpdate ? 'spin' : ''} />
+                    {isCheckingUpdate ? 'Checking GitHub...' : 'Check for Updates'}
+                  </button>
+
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => window.actionshell.app.openRelease('https://github.com/salvinramesh/actionshell/releases')}
+                  >
+                    <ExternalLink size={13} /> View Releases
+                  </button>
+                </div>
+
+                {updateCheckStatus && (
+                  <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: 'var(--radius-md)', background: updateCheckStatus.hasUpdate ? 'rgba(0, 212, 255, 0.12)' : 'rgba(166, 227, 161, 0.12)', border: `1px solid ${updateCheckStatus.hasUpdate ? 'var(--color-accent-500)' : '#A6E3A1'}`, display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-xs)' }}>
+                    {updateCheckStatus.hasUpdate ? (
+                      <>
+                        <Sparkles size={14} style={{ color: 'var(--color-accent-400)' }} />
+                        <span style={{ color: 'var(--color-text-100)' }}>New version <strong>v{updateCheckStatus.latestVersion}</strong> is available!</span>
+                        <button className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', padding: '2px 8px', fontSize: '11px' }} onClick={() => window.actionshell.app.openRelease(updateCheckStatus.releaseUrl)}>Download Update</button>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={14} style={{ color: '#A6E3A1' }} />
+                        <span style={{ color: '#A6E3A1' }}>ActionShell is up to date (v{appVersion || '1.3.9'}).</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
