@@ -35,6 +35,7 @@ export default function TerminalManager() {
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null)
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const [addMenuPos, setAddMenuPos] = useState<{ top: number; left: number } | null>(null)
   const [addMenuSearch, setAddMenuSearch] = useState('')
   const [renamingTab, setRenamingTab] = useState<{ id: string; title: string } | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
@@ -49,6 +50,18 @@ export default function TerminalManager() {
     window.addEventListener('click', handleClickOutside)
     return () => window.removeEventListener('click', handleClickOutside)
   }, [])
+
+  const handleAddClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    if (showAddMenu) {
+      setShowAddMenu(false)
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const left = Math.max(10, Math.min(rect.left, window.innerWidth - 335))
+      setAddMenuPos({ top: rect.bottom + 6, left })
+      setShowAddMenu(true)
+    }
+  }
 
   const closeTab = async (tabId: string) => {
     const tab = tabs.find(t => t.id === tabId)
@@ -150,12 +163,16 @@ export default function TerminalManager() {
           </div>
         ))}
         <div style={{ position: 'relative' }} ref={addMenuRef}>
-          <button className="tab-add" onClick={(e) => { e.stopPropagation(); setShowAddMenu(!showAddMenu) }} title="New Tab Options">
+          <button className="tab-add" onClick={handleAddClick} title="New Tab Options">
             <Plus size={14} />
           </button>
 
-          {showAddMenu && (
-            <div className="tab-add-popover" onClick={e => e.stopPropagation()}>
+          {showAddMenu && addMenuPos && (
+            <div
+              className="tab-add-popover-fixed animate-fadeInScale"
+              style={{ top: `${addMenuPos.top}px`, left: `${addMenuPos.left}px` }}
+              onClick={e => e.stopPropagation()}
+            >
               <button className="tab-add-popover-item" onClick={() => { newLocalTab(); setShowAddMenu(false) }}>
                 <Terminal size={14} style={{ color: 'var(--color-accent-500)' }} />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -164,8 +181,10 @@ export default function TerminalManager() {
                 </div>
               </button>
 
-              <div className="tab-add-search-container">
-                <Search size={12} style={{ color: 'var(--color-text-500)' }} />
+              <div className="tab-add-divider" />
+
+              <div className="tab-add-search-wrap">
+                <Search size={12} style={{ color: 'var(--color-text-500)', flexShrink: 0 }} />
                 <input
                   className="tab-add-search-input"
                   type="text"
@@ -174,11 +193,16 @@ export default function TerminalManager() {
                   value={addMenuSearch}
                   onChange={e => setAddMenuSearch(e.target.value)}
                 />
+                {addMenuSearch && (
+                  <button className="btn btn-icon" style={{ padding: '2px' }} onClick={() => setAddMenuSearch('')}>
+                    <X size={10} />
+                  </button>
+                )}
               </div>
 
               <div className="tab-add-host-list scrollable">
                 {filteredMenuHosts.length === 0 ? (
-                  <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: 'var(--color-text-500)' }}>
+                  <div className="tab-add-empty-state">
                     No remote servers found
                   </div>
                 ) : (
@@ -187,10 +211,8 @@ export default function TerminalManager() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                         <Server size={12} style={{ color: 'var(--color-accent-400)', flexShrink: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-200)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {h.name}
-                          </span>
-                          <span style={{ fontSize: '10px', color: 'var(--color-text-500)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span className="host-item-title">{h.name}</span>
+                          <span className="host-item-sub">
                             {h.username || 'root'}@{h.hostname}:{h.port || 22}
                           </span>
                         </div>
