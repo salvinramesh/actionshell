@@ -17,6 +17,8 @@ interface UIStore {
   termFontColor: string
   termBgColor: string
   logHighlightActive: boolean
+  defaultShell: string
+  customShellPath: string
 
   setTheme: (t: Theme) => void
   setView: (v: View) => void
@@ -31,6 +33,8 @@ interface UIStore {
   setTermFontColor: (c: string) => void
   setTermBgColor: (c: string) => void
   setLogHighlightActive: (v: boolean) => void
+  setDefaultShell: (s: string) => void
+  setCustomShellPath: (p: string) => void
 }
 
 export interface Notification {
@@ -55,6 +59,8 @@ export const useUIStore = create<UIStore>((set) => ({
   termFontColor: localStorage.getItem('actionshell_term_font_color') || '#CDD6F4',
   termBgColor: localStorage.getItem('actionshell_term_bg_color') || '#0A0E1A',
   logHighlightActive: localStorage.getItem('actionshell_log_highlight_active') !== 'false',
+  defaultShell: localStorage.getItem('actionshell_default_shell') || 'zsh',
+  customShellPath: localStorage.getItem('actionshell_custom_shell_path') || '',
 
   setTheme: (theme) => {
     set({ theme })
@@ -112,5 +118,13 @@ export const useUIStore = create<UIStore>((set) => ({
   setLogHighlightActive: (logHighlightActive) => {
     set({ logHighlightActive })
     localStorage.setItem('actionshell_log_highlight_active', String(logHighlightActive))
+  },
+  setDefaultShell: (defaultShell) => {
+    set({ defaultShell })
+    localStorage.setItem('actionshell_default_shell', defaultShell)
+  },
+  setCustomShellPath: (customShellPath) => {
+    set({ customShellPath })
+    localStorage.setItem('actionshell_custom_shell_path', customShellPath)
   },
 }))

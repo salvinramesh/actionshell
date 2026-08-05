@@ -201,7 +201,7 @@ export async function spawnSSHSession(
         session.status = 'connected'
         recordings.set(sessionId, [])
         
-        client.shell({ term: 'xterm-256color', cols, rows }, (err, stream) => {
+        client.shell({ term: 'xterm-256color', cols, rows }, { env: { TERM: 'xterm-256color', COLORTERM: 'truecolor' } }, (err, stream) => {
           if (err) {
             session.status = 'error'
             sessions.delete(sessionId)

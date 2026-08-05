@@ -12,7 +12,9 @@ export default function SettingsPanel() {
     termFontFamily, setTermFontFamily,
     termFontColor, setTermFontColor,
     termBgColor, setTermBgColor,
-    logHighlightActive, setLogHighlightActive
+    logHighlightActive, setLogHighlightActive,
+    defaultShell, setDefaultShell,
+    customShellPath, setCustomShellPath
   } = useUIStore()
   const { session, logout } = useAuthStore()
 
@@ -165,6 +167,29 @@ export default function SettingsPanel() {
             <h2 style={{fontSize:'var(--text-xl)',fontWeight:'var(--weight-bold)',color:'var(--color-text-100)',marginBottom:'24px'}}>Terminal</h2>
             <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
               <div className="form-group">
+                <label className="form-label">Preferred Local Shell</label>
+                <select className="form-input form-select" value={defaultShell} onChange={e=>setDefaultShell(e.target.value)}>
+                  <option value="zsh">Zsh (Recommended / Default)</option>
+                  <option value="bash">Bash</option>
+                  <option value="powershell">PowerShell</option>
+                  <option value="custom">Custom Shell Path...</option>
+                </select>
+              </div>
+
+              {defaultShell === 'custom' && (
+                <div className="form-group">
+                  <label className="form-label">Custom Shell Executable Path</label>
+                  <input
+                    className="form-input mono"
+                    type="text"
+                    placeholder="e.g. /usr/bin/zsh or C:\Program Files\Git\bin\bash.exe"
+                    value={customShellPath}
+                    onChange={e => setCustomShellPath(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
                 <label className="form-label">Terminal Theme</label>
                 <select className="form-input form-select" value={termTheme} onChange={e=>handleTermThemeChange(e.target.value)}>
                   <option value="dark">Default Dark</option>
@@ -199,10 +224,11 @@ export default function SettingsPanel() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Font Family</label>
+                <label className="form-label">Font Family (Nerd Fonts supported for Zsh Powerline prompts)</label>
                 <select className="form-input form-select" value={termFontFamily} onChange={e=>setTermFontFamily(e.target.value)}>
+                  <option value="'MesloLGS NF', 'FiraCode Nerd Font', 'JetBrains Mono', monospace">MesloLGS NF / Powerline</option>
                   <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
-                  <option value="'Fira Code', monospace">Fira Code</option>
+                  <option value="'Fira Code', 'FiraCode Nerd Font', monospace">Fira Code</option>
                   <option value="'Cascadia Code', monospace">Cascadia Code</option>
                   <option value="Consolas, monospace">Consolas</option>
                   <option value="monospace">System Monospace</option>

@@ -3,6 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import '@xterm/xterm/css/xterm.css'
 import type { TerminalTab } from '../../store/terminal.store'
@@ -94,7 +95,7 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
 
   const spawnedSessions = useRef<Set<string>>(new Set())
 
-  const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive } = useUIStore()
+  const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive, defaultShell, customShellPath } = useUIStore()
 
   useEffect(() => {
     if (tab.status === 'connecting' || tab.status === 'connected') {
@@ -157,10 +158,13 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
     const fit = new FitAddon()
     const webLinks = new WebLinksAddon()
     const search = new SearchAddon()
+    const unicode11 = new Unicode11Addon()
 
     xterm.loadAddon(fit)
     xterm.loadAddon(webLinks)
     xterm.loadAddon(search)
+    xterm.loadAddon(unicode11)
+    xterm.unicode.activeVersion = '11'
     xterm.open(containerRef.current)
     fit.fit()
 
@@ -268,7 +272,18 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
       spawnedSessions.current.add(sessionId)
       const { cols, rows } = xterm
       if (tab.isLocal) {
-        window.actionshell.terminal.spawnLocal(sessionId, undefined, cols, rows)
+        let targetShell: string | undefined = undefined
+        if (defaultShell === 'custom' && customShellPath) {
+          targetShell = customShellPath
+        } else if (defaultShell === 'zsh') {
+          targetShell = 'zsh'
+        } else if (defaultShell === 'bash') {
+          targetShell = 'bash'
+        } else if (defaultShell === 'powershell') {
+          targetShell = 'powershell.exe'
+        }
+
+        window.actionshell.terminal.spawnLocal(sessionId, targetShell, cols, rows)
           .then(res => updateTab(tab.id, { status: res.success ? 'connected' : 'error' }))
       } else if (tab.hostId) {
         xterm.write(`\r\n\x1b[90mConnecting to ${tab.hostname}...\x1b[0m\r\n`)
