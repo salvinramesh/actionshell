@@ -145,6 +145,7 @@ export default function SettingsPanel() {
     { id: 'keys', label: 'SSH Keys', icon: <Key size={15}/> },
     { id: 'snippets', label: 'Snippets', icon: <Zap size={15}/> },
     { id: 'security', label: 'Security', icon: <Shield size={15}/> },
+    { id: 'about', label: 'About & Updates', icon: <Info size={15}/> },
   ]
 
   return (
