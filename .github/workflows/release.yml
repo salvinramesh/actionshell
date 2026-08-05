@@ -132,6 +132,9 @@ jobs:
             @esbuild/win32-x64 \
             --no-save --legacy-peer-deps --ignore-scripts 2>/dev/null || true
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Setup MSVC Developer Environment
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -155,9 +158,19 @@ jobs:
         run: pip install setuptools
 
       - name: Rebuild node-pty for Electron (Windows)
-        shell: cmd
+        shell: pwsh
         run: |
-          npx @electron/rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
+          # Bypass @electron/node-gyp's broken VS 2022 finder by using
+          # raw node-gyp with explicit Electron header flags.
+          # MSBuild + cl.exe are already on PATH via setup-msbuild + ilammy/msvc-dev-cmd.
+          cd node_modules/node-pty
+          npx node-gyp rebuild `
+            --target=${{ steps.electron_ver.outputs.version }} `
+            --arch=x64 `
+            --dist-url=https://electronjs.org/headers `
+            --runtime=electron `
+            --build-from-source `
+            --msvs_version=2022
 
       - name: Build Vite bundles
         run: npx electron-vite build
