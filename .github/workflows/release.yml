@@ -131,11 +131,6 @@ jobs:
       - name: Setup MSVC Developer Environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Configure node-gyp MSVS version
-        shell: bash
-        run: |
-          npm config set msvs_version 2022
-
       - name: Get Electron version
         id: electron_ver
         shell: bash
@@ -162,7 +157,7 @@ jobs:
         run: |
           cd node_modules/node-pty
           npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 \
-            || npx @electron/rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64 --msvs_version=2022
+            || npx @electron/rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
 
       - name: Build Vite bundles
         run: npx electron-vite build
