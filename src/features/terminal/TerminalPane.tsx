@@ -177,6 +177,13 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
 
     // Send input - uses tabRef to avoid closure stale-state issues
     xterm.onData((data) => {
+      // Format multiline paste data with Bracketed Paste Mode (\x1b[200~ ... \x1b[201~)
+      let sendData = data
+      if (data.length > 4 && (data.includes('\n') || data.includes('\r')) && !data.includes('\x1b[200~')) {
+        const cleanText = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        sendData = `\x1b[200~${cleanText.replace(/\n/g, '\r')}\x1b[201~`
+      }
+
       // Auto-suggestion keyboard handler
       const suggestStore = useAutoSuggestStore.getState()
 
@@ -226,11 +233,11 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
       if (terminalStore.broadcastActive) {
         terminalStore.tabs.forEach(t => {
           if (t.status === 'connected') {
-            window.actionshell.terminal.input(t.sessionId, data, t.isLocal || false)
+            window.actionshell.terminal.input(t.sessionId, sendData, t.isLocal || false)
           }
         })
       } else {
-        window.actionshell.terminal.input(tabRef.current.sessionId, data, tabRef.current.isLocal || false)
+        window.actionshell.terminal.input(tabRef.current.sessionId, sendData, tabRef.current.isLocal || false)
       }
     })
 
@@ -242,17 +249,23 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
         navigator.clipboard.writeText(text)
         xterm.clearSelection()
       } else {
-        navigator.clipboard.readText().then((text) => {
-          if (text) {
+        navigator.clipboard.readText().then((rawText) => {
+          if (rawText) {
+            // Apply Bracketed Paste Mode formatting (\x1b[200~ ... \x1b[201~) for clean paste in nano/vim
+            const cleanText = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+            const formattedText = cleanText.includes('\n')
+              ? `\x1b[200~${cleanText.replace(/\n/g, '\r')}\x1b[201~`
+              : cleanText
+
             const terminalStore = useTerminalStore.getState()
             if (terminalStore.broadcastActive) {
               terminalStore.tabs.forEach(t => {
                 if (t.status === 'connected') {
-                  window.actionshell.terminal.input(t.sessionId, text, t.isLocal || false)
+                  window.actionshell.terminal.input(t.sessionId, formattedText, t.isLocal || false)
                 }
               })
             } else {
-              window.actionshell.terminal.input(tabRef.current.sessionId, text, tabRef.current.isLocal || false)
+              window.actionshell.terminal.input(tabRef.current.sessionId, formattedText, tabRef.current.isLocal || false)
             }
           }
         }).catch(() => {})

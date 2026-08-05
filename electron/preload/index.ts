@@ -152,10 +152,12 @@ const api = {
     isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
   },
   
-  // App info
+  // App info & Auto-updater
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
     getPath: (name: string) => ipcRenderer.invoke('app:get-path', name),
+    checkUpdate: () => ipcRenderer.invoke('app:check-update'),
+    openRelease: (url: string) => ipcRenderer.invoke('app:open-url', url),
   },
   
   // Theme

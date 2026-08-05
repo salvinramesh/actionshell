@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Minus, Maximize2, X, Terminal, Settings, LayoutDashboard, Lock, Moon, Sun, Network } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Minus, Maximize2, X, Terminal, Settings, LayoutDashboard, Lock, Moon, Sun, Network, ArrowUpCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useUIStore } from '../../store/ui.store'
 import './Layout.css'
@@ -9,7 +9,16 @@ import logo from '../../logo.png'
 export default function TitleBar() {
   const { session, setLocked } = useAuthStore()
   const { theme, setTheme, setView, currentView } = useUIStore()
+  const [updateInfo, setUpdateInfo] = useState<{ hasUpdate: boolean; latestVersion: string; releaseUrl: string } | null>(null)
   const isAdmin = session?.role === 'super_admin' || session?.role === 'admin'
+
+  useEffect(() => {
+    window.actionshell.app.checkUpdate().then((res: any) => {
+      if (res && res.hasUpdate) {
+        setUpdateInfo(res)
+      }
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className="titlebar titlebar">
@@ -29,6 +38,18 @@ export default function TitleBar() {
           <img src={logo} alt="ActionShell" style={{ width: '14px', height: '14px', objectFit: 'contain' }} />
           <span style={{fontSize:'var(--text-xs)',fontWeight:700,color:'var(--color-text-400)',letterSpacing:'-0.01em'}}>ActionShell</span>
         </div>
+
+        {updateInfo?.hasUpdate && (
+          <button
+            className="titlebar-update-pill animate-fadeIn"
+            style={{ WebkitAppRegion: 'no-drag' } as any}
+            onClick={() => window.actionshell.app.openRelease(updateInfo.releaseUrl)}
+            title={`ActionShell v${updateInfo.latestVersion} is available! Click to download.`}
+          >
+            <ArrowUpCircle size={12} style={{ color: 'var(--color-accent-400)' }} />
+            <span>v{updateInfo.latestVersion} Available</span>
+          </button>
+        )}
       </div>
 
       <div className="titlebar-right" style={{WebkitAppRegion:'no-drag'} as any}>
