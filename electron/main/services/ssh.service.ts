@@ -211,25 +211,19 @@ export async function spawnSSHSession(
           }
           
           session.stream = stream
-          let silentStartup = Boolean(sshShellOptions?.useZsh)
           
           stream.on('data', (data: Buffer) => {
             const text = data.toString()
             const rec = recordings.get(sessionId)
             if (rec) rec.push({ time: Date.now(), data: text })
-            
-            if (!silentStartup) {
-              sshEvents.emit('terminal:output', { sessionId, data: text })
-            }
+            sshEvents.emit('terminal:output', { sessionId, data: text })
           })
           
           stream.stderr.on('data', (data: Buffer) => {
             const text = data.toString()
             const rec = recordings.get(sessionId)
             if (rec) rec.push({ time: Date.now(), data: text })
-            if (!silentStartup) {
-              sshEvents.emit('terminal:output', { sessionId, data: text })
-            }
+            sshEvents.emit('terminal:output', { sessionId, data: text })
           })
           
           stream.on('close', () => {
@@ -244,34 +238,6 @@ export async function spawnSSHSession(
               recordings.delete(sessionId)
             }
           })
-          
-          // After shell is ready, switch to zsh silently if enabled
-          if (sshShellOptions?.useZsh) {
-            const cmds: string[] = []
-            
-            if (sshShellOptions.zshPlugins) {
-              cmds.push('[ -d ~/.zsh/zsh-autosuggestions ] || (mkdir -p ~/.zsh && git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions ~/.zsh/zsh-autosuggestions && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting ~/.zsh/zsh-syntax-highlighting) >/dev/null 2>&1')
-              cmds.push('touch ~/.zshrc')
-              cmds.push("grep -q zsh-autosuggestions ~/.zshrc 2>/dev/null || echo 'source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh' >> ~/.zshrc")
-              cmds.push("grep -q zsh-syntax-highlighting ~/.zshrc 2>/dev/null || echo 'source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> ~/.zshrc")
-            }
-            cmds.push('exec zsh -l')
-
-            const fullCmd = cmds.join('\n')
-
-            // Write startup commands silently into stream
-            stream.write(fullCmd + '\n')
-
-            // Un-mute terminal output after 600ms and clear screen cleanly
-            setTimeout(() => {
-              silentStartup = false
-              if (session.status === 'connected') {
-                // Clear xterm screen and request fresh prompt
-                sshEvents.emit('terminal:output', { sessionId, data: '\x1b[2J\x1b[3J\x1b[H' })
-                stream.write('\n')
-              }
-            }, 600)
-          }
           
           // Audit log via server
           api.post('/audit-action', {

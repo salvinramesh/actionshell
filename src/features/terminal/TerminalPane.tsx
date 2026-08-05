@@ -4,11 +4,12 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { AlertTriangle, RefreshCw, Sparkles } from 'lucide-react'
 import '@xterm/xterm/css/xterm.css'
 import type { TerminalTab } from '../../store/terminal.store'
 import { useTerminalStore } from '../../store/terminal.store'
 import { useUIStore } from '../../store/ui.store'
+import { useAutoSuggestStore } from '../../store/autosuggest.store'
 import { v4 as uuidv4 } from 'uuid'
 
 const THEMES: Record<string, any> = {
@@ -94,8 +95,11 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
   tabRef.current = tab
 
   const spawnedSessions = useRef<Set<string>>(new Set())
+  const inputBufferRef = useRef('')
+  const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null)
+  const activeSuggestionRef = useRef<string | null>(null)
 
-  const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive, defaultShell, customShellPath, sshUseZsh, sshZshPlugins } = useUIStore()
+  const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive, defaultShell, customShellPath } = useUIStore()
 
   useEffect(() => {
     if (tab.status === 'connecting' || tab.status === 'connected') {
@@ -173,6 +177,51 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
 
     // Send input - uses tabRef to avoid closure stale-state issues
     xterm.onData((data) => {
+      // Auto-suggestion keyboard handler
+      const suggestStore = useAutoSuggestStore.getState()
+
+      if (data === '\r' || data === '\n') {
+        if (inputBufferRef.current.trim()) {
+          suggestStore.addCommand(inputBufferRef.current.trim())
+        }
+        inputBufferRef.current = ''
+        activeSuggestionRef.current = null
+        setActiveSuggestion(null)
+      } else if (data === '\x7f' || data === '\x08') {
+        inputBufferRef.current = inputBufferRef.current.slice(0, -1)
+        const match = suggestStore.getSuggestion(inputBufferRef.current)
+        activeSuggestionRef.current = match
+        setActiveSuggestion(match)
+      } else if (data === '\x03' || data === '\x15') {
+        inputBufferRef.current = ''
+        activeSuggestionRef.current = null
+        setActiveSuggestion(null)
+      } else if ((data === '\x1b[C' || data === '\t') && activeSuggestionRef.current) {
+        const suggestion = activeSuggestionRef.current
+        const remaining = suggestion.slice(inputBufferRef.current.length)
+        if (remaining) {
+          const terminalStore = useTerminalStore.getState()
+          if (terminalStore.broadcastActive) {
+            terminalStore.tabs.forEach(t => {
+              if (t.status === 'connected') {
+                window.actionshell.terminal.input(t.sessionId, remaining, t.isLocal || false)
+              }
+            })
+          } else {
+            window.actionshell.terminal.input(tabRef.current.sessionId, remaining, tabRef.current.isLocal || false)
+          }
+          inputBufferRef.current = suggestion
+        }
+        activeSuggestionRef.current = null
+        setActiveSuggestion(null)
+        if (data === '\t') return
+      } else if (data.length === 1 && data.charCodeAt(0) >= 32) {
+        inputBufferRef.current += data
+        const match = suggestStore.getSuggestion(inputBufferRef.current)
+        activeSuggestionRef.current = match
+        setActiveSuggestion(match)
+      }
+
       const terminalStore = useTerminalStore.getState()
       if (terminalStore.broadcastActive) {
         terminalStore.tabs.forEach(t => {
@@ -287,7 +336,7 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
           .then(res => updateTab(tab.id, { status: res.success ? 'connected' : 'error' }))
       } else if (tab.hostId) {
         xterm.write(`\r\n\x1b[90mConnecting to ${tab.hostname}...\x1b[0m\r\n`)
-        window.actionshell.terminal.spawnSSH(sessionId, tab.hostId, cols, rows, '', { useZsh: sshUseZsh, zshPlugins: sshZshPlugins })
+        window.actionshell.terminal.spawnSSH(sessionId, tab.hostId, cols, rows, '')
           .then(res => updateTab(tab.id, { status: res.success ? 'connected' : 'error' }))
           .catch(err => {
             xterm.write(`\r\n\x1b[31mConnection failed: ${err.message}\x1b[0m\r\n`)
@@ -311,6 +360,28 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
   const activeTheme = THEMES[termTheme] || THEMES.dark
   const showOverlay = (tab.status === 'closed' || tab.status === 'error') && !dismissed
 
+  const handleAcceptSuggestion = () => {
+    if (activeSuggestion && inputBufferRef.current) {
+      const remaining = activeSuggestion.slice(inputBufferRef.current.length)
+      if (remaining) {
+        const terminalStore = useTerminalStore.getState()
+        if (terminalStore.broadcastActive) {
+          terminalStore.tabs.forEach(t => {
+            if (t.status === 'connected') {
+              window.actionshell.terminal.input(t.sessionId, remaining, t.isLocal || false)
+            }
+          })
+        } else {
+          window.actionshell.terminal.input(tabRef.current.sessionId, remaining, tabRef.current.isLocal || false)
+        }
+        inputBufferRef.current = activeSuggestion
+      }
+      activeSuggestionRef.current = null
+      setActiveSuggestion(null)
+      xtermRef.current?.focus()
+    }
+  }
+
   return (
     <div
       style={{
@@ -329,6 +400,18 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
           padding: '4px'
         }}
       />
+      {activeSuggestion && (
+        <div
+          className="terminal-autosuggest-bar"
+          onClick={handleAcceptSuggestion}
+          title="Click or press → / Tab to complete command"
+        >
+          <Sparkles size={11} style={{ color: 'var(--color-accent-400)' }} />
+          <span className="suggestion-label">Suggest:</span>
+          <span className="suggestion-text">{activeSuggestion}</span>
+          <span className="suggestion-hint">→ / Tab</span>
+        </div>
+      )}
       {showOverlay && (
         <div className="reconnect-overlay">
           <div className="reconnect-card">
