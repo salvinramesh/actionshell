@@ -212,12 +212,26 @@ export async function spawnSSHSession(
           
           session.stream = stream
           let silentStartup = Boolean(sshShellOptions?.useZsh)
+          let startupBuffer = ''
           
           stream.on('data', (data: Buffer) => {
             const text = data.toString()
             const rec = recordings.get(sessionId)
             if (rec) rec.push({ time: Date.now(), data: text })
-            if (!silentStartup) {
+            
+            if (silentStartup) {
+              startupBuffer += text
+              if (startupBuffer.includes('___ACTIONSHELL_ZSH_READY___')) {
+                silentStartup = false
+                const parts = startupBuffer.split('___ACTIONSHELL_ZSH_READY___')
+                const zshOutput = parts[parts.length - 1].replace(/^\r?\n/, '')
+                sshEvents.emit('terminal:output', {
+                  sessionId,
+                  data: '\x1b[2J\x1b[3J\x1b[H' + zshOutput
+                })
+                startupBuffer = ''
+              }
+            } else {
               sshEvents.emit('terminal:output', { sessionId, data: text })
             }
           })
@@ -249,23 +263,25 @@ export async function spawnSSHSession(
             let cmd: string
 
             if (sshShellOptions.zshPlugins) {
-              cmd = 'command -v zsh >/dev/null 2>&1 && { ZD=$HOME/.zsh; mkdir -p $ZD; touch ~/.zshrc; [ ! -d $ZD/zsh-autosuggestions ] && git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions $ZD/zsh-autosuggestions >/dev/null 2>&1; [ ! -d $ZD/zsh-syntax-highlighting ] && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting $ZD/zsh-syntax-highlighting >/dev/null 2>&1; grep -q zsh-autosuggestions ~/.zshrc 2>/dev/null || printf \'\\n# ActionShell Zsh Configuration\\nautoload -U compinit && compinit 2>/dev/null\\n[ -f "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"\\n[ -f "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"\\n\' >> ~/.zshrc; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; }'
+              cmd = 'command -v zsh >/dev/null 2>&1 && { ZD=$HOME/.zsh; mkdir -p $ZD; touch ~/.zshrc; [ ! -d $ZD/zsh-autosuggestions ] && git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions $ZD/zsh-autosuggestions >/dev/null 2>&1; [ ! -d $ZD/zsh-syntax-highlighting ] && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting $ZD/zsh-syntax-highlighting >/dev/null 2>&1; grep -q zsh-autosuggestions ~/.zshrc 2>/dev/null || printf \'\\n# ActionShell Zsh Configuration\\nautoload -U compinit && compinit 2>/dev/null\\n[ -f "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"\\n[ -f "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"\\n\' >> ~/.zshrc; echo "___ACTIONSHELL_ZSH_READY___"; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; } || echo "___ACTIONSHELL_ZSH_READY___"'
             } else {
-              cmd = 'command -v zsh >/dev/null 2>&1 && { touch ~/.zshrc; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; }'
+              cmd = 'command -v zsh >/dev/null 2>&1 && { touch ~/.zshrc; echo "___ACTIONSHELL_ZSH_READY___"; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; } || echo "___ACTIONSHELL_ZSH_READY___"'
             }
 
             // Write startup command silently
             stream.write(cmd + '\n')
 
-            // Un-mute terminal output after startup completes (800ms)
+            // Safety fallback timeout in case marker is missed
             setTimeout(() => {
-              silentStartup = false
-              if (session.status === 'connected') {
-                // Clear xterm screen and prompt zsh
-                sshEvents.emit('terminal:output', { sessionId, data: '\x1b[2J\x1b[3J\x1b[H' })
-                stream.write('\n')
+              if (silentStartup) {
+                silentStartup = false
+                if (session.status === 'connected') {
+                  sshEvents.emit('terminal:output', { sessionId, data: '\x1b[2J\x1b[3J\x1b[H' + startupBuffer })
+                  startupBuffer = ''
+                  stream.write('\n')
+                }
               }
-            }, 800)
+            }, 4000)
           }
           
           // Audit log via server

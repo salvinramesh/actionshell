@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import { Plus, X, Terminal, Server, FolderOpen, Zap, Radio, Grid, Columns, Rows, Square } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Plus, X, Terminal, Server, FolderOpen, Zap, Radio, Grid, Columns, Rows, Square, Copy, ExternalLink, Pencil, Search, Star } from 'lucide-react'
 import { useTerminalStore, TerminalTab } from '../../store/terminal.store'
+import { useConnectionsStore } from '../../store/connections.store'
 import { useUIStore } from '../../store/ui.store'
 import { useAuthStore } from '../../store/auth.store'
 import TerminalPane from './TerminalPane'
 import SFTPPanel from '../sftp/SFTPPanel'
 import { v4 as uuidv4 } from 'uuid'
+import type { SSHHost } from '../../../shared/types'
 import './Terminal.css'
 // @ts-ignore
 import logo from '../../logo.png'
@@ -18,6 +20,7 @@ export default function TerminalManager() {
     removeTab,
     toggleSftp,
     addTab,
+    updateTab,
     broadcastActive,
     setBroadcastActive,
     layout,
@@ -26,8 +29,26 @@ export default function TerminalManager() {
     setLayout,
     setActivePane
   } = useTerminalStore()
+  const { hosts } = useConnectionsStore()
   const { setShowSnippetPalette } = useUIStore()
   const { session } = useAuthStore()
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null)
+  const [showAddMenu, setShowAddMenu] = useState(false)
+  const [addMenuSearch, setAddMenuSearch] = useState('')
+  const [renamingTab, setRenamingTab] = useState<{ id: string; title: string } | null>(null)
+  const addMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      setContextMenu(null)
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false)
+      }
+    }
+    window.addEventListener('click', handleClickOutside)
+    return () => window.removeEventListener('click', handleClickOutside)
+  }, [])
 
   const closeTab = async (tabId: string) => {
     const tab = tabs.find(t => t.id === tabId)
@@ -41,6 +62,57 @@ export default function TerminalManager() {
     const sessionId = uuidv4()
     addTab({ sessionId, title: 'Local Shell', type: 'local', isLocal: true, status: 'connecting' })
   }
+
+  const duplicateTab = (tabId: string) => {
+    const tab = tabs.find(t => t.id === tabId)
+    if (!tab) return
+    const newSessionId = uuidv4()
+    addTab({
+      sessionId: newSessionId,
+      title: tab.title,
+      type: tab.type,
+      hostId: tab.hostId,
+      hostname: tab.hostname,
+      isLocal: tab.isLocal,
+      status: 'connecting'
+    })
+    setContextMenu(null)
+  }
+
+  const connectHostFromMenu = (host: SSHHost) => {
+    const sessionId = uuidv4()
+    addTab({
+      sessionId,
+      title: host.name,
+      type: 'ssh',
+      hostId: host.id,
+      hostname: host.hostname,
+      isLocal: false,
+      status: 'connecting'
+    })
+    setShowAddMenu(false)
+    setAddMenuSearch('')
+  }
+
+  const handleRenameSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (renamingTab && renamingTab.title.trim()) {
+      updateTab(renamingTab.id, { title: renamingTab.title.trim() })
+    }
+    setRenamingTab(null)
+  }
+
+  const handleTabContextMenu = (e: React.MouseEvent, tabId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, tabId })
+  }
+
+  const filteredMenuHosts = hosts.filter(h => {
+    if (!addMenuSearch) return true
+    const q = addMenuSearch.toLowerCase()
+    return h.name.toLowerCase().includes(q) || h.hostname.toLowerCase().includes(q) || (h.username || '').toLowerCase().includes(q)
+  })
 
   const activeTab = tabs.find(t => t.id === activeTabId)
 
@@ -59,6 +131,7 @@ export default function TerminalManager() {
             key={tab.id}
             className={`tab-item ${tab.id === activeTabId ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
+            onContextMenu={(e) => handleTabContextMenu(e, tab.id)}
             draggable={true}
             onDragStart={(e) => {
               e.dataTransfer.setData('text/plain', tab.id)
@@ -76,10 +149,123 @@ export default function TerminalManager() {
             </button>
           </div>
         ))}
-        <button className="tab-add" onClick={newLocalTab} title="New local shell tab">
-          <Plus size={14} />
-        </button>
+        <div style={{ position: 'relative' }} ref={addMenuRef}>
+          <button className="tab-add" onClick={(e) => { e.stopPropagation(); setShowAddMenu(!showAddMenu) }} title="New Tab Options">
+            <Plus size={14} />
+          </button>
+
+          {showAddMenu && (
+            <div className="tab-add-popover" onClick={e => e.stopPropagation()}>
+              <button className="tab-add-popover-item" onClick={() => { newLocalTab(); setShowAddMenu(false) }}>
+                <Terminal size={14} style={{ color: 'var(--color-accent-500)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>Connect Local Shell</span>
+                  <span style={{ fontSize: '10px', color: 'var(--color-text-500)', fontWeight: 'normal' }}>Open local Zsh / PowerShell</span>
+                </div>
+              </button>
+
+              <div className="tab-add-search-container">
+                <Search size={12} style={{ color: 'var(--color-text-500)' }} />
+                <input
+                  className="tab-add-search-input"
+                  type="text"
+                  placeholder="Search remote servers..."
+                  autoFocus
+                  value={addMenuSearch}
+                  onChange={e => setAddMenuSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="tab-add-host-list scrollable">
+                {filteredMenuHosts.length === 0 ? (
+                  <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: 'var(--color-text-500)' }}>
+                    No remote servers found
+                  </div>
+                ) : (
+                  filteredMenuHosts.map(h => (
+                    <div key={h.id} className="tab-add-host-item" onClick={() => connectHostFromMenu(h)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <Server size={12} style={{ color: 'var(--color-accent-400)', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-200)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {h.name}
+                          </span>
+                          <span style={{ fontSize: '10px', color: 'var(--color-text-500)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {h.username || 'root'}@{h.hostname}:{h.port || 22}
+                          </span>
+                        </div>
+                      </div>
+                      {h.isFavorite && <Star size={10} style={{ color: '#F9E2AF', fill: '#F9E2AF', flexShrink: 0 }} />}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Tab Context Menu Overlay */}
+      {contextMenu && (
+        <div
+          className="tab-context-menu"
+          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button className="tab-context-menu-item" onClick={() => duplicateTab(contextMenu.tabId)}>
+            <Copy size={13} /> Duplicate
+          </button>
+          <button className="tab-context-menu-item" onClick={() => duplicateTab(contextMenu.tabId)}>
+            <ExternalLink size={13} /> Duplicate in a new window
+          </button>
+          <button className="tab-context-menu-item" onClick={() => { setBroadcastActive(!broadcastActive); setContextMenu(null) }}>
+            <Radio size={13} /> {broadcastActive ? 'Stop multiplayer' : 'Start multiplayer'}
+          </button>
+          <div className="tab-context-menu-divider" />
+          <button className="tab-context-menu-item" onClick={() => {
+            const t = tabs.find(x => x.id === contextMenu.tabId)
+            if (t) setRenamingTab({ id: t.id, title: t.title })
+            setContextMenu(null)
+          }}>
+            <Pencil size={13} /> Rename
+          </button>
+          <button className="tab-context-menu-item" onClick={() => { setLayout('split-h'); setContextMenu(null) }}>
+            <Rows size={13} /> Split horizontally
+          </button>
+          <button className="tab-context-menu-item" onClick={() => { setLayout('split-v'); setContextMenu(null) }}>
+            <Columns size={13} /> Split vertically
+          </button>
+          <div className="tab-context-menu-divider" />
+          <button className="tab-context-menu-item danger" onClick={() => { closeTab(contextMenu.tabId); setContextMenu(null) }}>
+            <X size={13} /> Close
+          </button>
+        </div>
+      )}
+
+      {/* Rename Tab Modal */}
+      {renamingTab && (
+        <div className="modal-backdrop animate-fadeIn" onClick={() => setRenamingTab(null)}>
+          <div className="modal-card" style={{ maxWidth: '360px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">Rename Tab</span>
+              <button className="btn btn-icon btn-sm" onClick={() => setRenamingTab(null)}><X size={12} /></button>
+            </div>
+            <form onSubmit={handleRenameSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
+              <input
+                className="form-input"
+                type="text"
+                autoFocus
+                value={renamingTab.title}
+                onChange={e => setRenamingTab({ ...renamingTab, title: e.target.value })}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRenamingTab(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm">Save Title</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Terminal toolbar */}
       {activeTab && (
