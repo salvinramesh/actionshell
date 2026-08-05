@@ -87,11 +87,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
-    runs-on: windows-latest
-    env:
-      npm_config_msvs_version: "2022"
-      GYP_MSVS_VERSION: "2022"
-      MSVS_VERSION: "2022"
+    runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -132,9 +128,6 @@ jobs:
             @esbuild/win32-x64 \
             --no-save --legacy-peer-deps --ignore-scripts 2>/dev/null || true
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
       - name: Setup MSVC Developer Environment
         uses: ilammy/msvc-dev-cmd@v1
 
@@ -157,20 +150,26 @@ jobs:
       - name: Setup Python with setuptools (for node-gyp on Python 3.12)
         run: pip install setuptools
 
+      - name: Install standard node-gyp globally
+        run: npm install -g node-gyp@latest
+
       - name: Rebuild node-pty for Electron (Windows)
         shell: pwsh
         run: |
-          # Bypass @electron/node-gyp's broken VS 2022 finder by using
-          # raw node-gyp with explicit Electron header flags.
-          # MSBuild + cl.exe are already on PATH via setup-msbuild + ilammy/msvc-dev-cmd.
+          # Use globally-installed standard node-gyp (not @electron/node-gyp
+          # which has a broken VS 2022 version finder).
+          # Do NOT pass --msvs_version — let node-gyp auto-detect without
+          # version constraints so it accepts whatever VS is installed.
+          # Remove npm_config_msvs_version from env to prevent interference.
+          Remove-Item Env:npm_config_msvs_version -ErrorAction SilentlyContinue
+          Remove-Item Env:GYP_MSVS_VERSION -ErrorAction SilentlyContinue
+          Remove-Item Env:MSVS_VERSION -ErrorAction SilentlyContinue
           cd node_modules/node-pty
-          npx node-gyp rebuild `
+          node-gyp rebuild `
             --target=${{ steps.electron_ver.outputs.version }} `
             --arch=x64 `
             --dist-url=https://electronjs.org/headers `
-            --runtime=electron `
-            --build-from-source `
-            --msvs_version=2022
+            --runtime=electron
 
       - name: Build Vite bundles
         run: npx electron-vite build
