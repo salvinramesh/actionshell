@@ -155,11 +155,9 @@ jobs:
         run: pip install setuptools
 
       - name: Rebuild node-pty for Electron (Windows)
-        shell: bash
+        shell: cmd
         run: |
-          cd node_modules/node-pty
-          npx prebuild-install --runtime electron --target ${{ steps.electron_ver.outputs.version }} --arch x64 --platform win32 \
-            || npx electron-rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
+          npx @electron/rebuild -f -w node-pty --target ${{ steps.electron_ver.outputs.version }} --arch x64
 
       - name: Build Vite bundles
         run: npx electron-vite build
