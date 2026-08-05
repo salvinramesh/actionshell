@@ -212,26 +212,13 @@ export async function spawnSSHSession(
           
           session.stream = stream
           let silentStartup = Boolean(sshShellOptions?.useZsh)
-          let startupBuffer = ''
           
           stream.on('data', (data: Buffer) => {
             const text = data.toString()
             const rec = recordings.get(sessionId)
             if (rec) rec.push({ time: Date.now(), data: text })
             
-            if (silentStartup) {
-              startupBuffer += text
-              if (startupBuffer.includes('___ACTIONSHELL_ZSH_READY___')) {
-                silentStartup = false
-                const parts = startupBuffer.split('___ACTIONSHELL_ZSH_READY___')
-                const zshOutput = parts[parts.length - 1].replace(/^\r?\n/, '')
-                sshEvents.emit('terminal:output', {
-                  sessionId,
-                  data: '\x1b[2J\x1b[3J\x1b[H' + zshOutput
-                })
-                startupBuffer = ''
-              }
-            } else {
+            if (!silentStartup) {
               sshEvents.emit('terminal:output', { sessionId, data: text })
             }
           })
@@ -260,28 +247,30 @@ export async function spawnSSHSession(
           
           // After shell is ready, switch to zsh silently if enabled
           if (sshShellOptions?.useZsh) {
-            let cmd: string
-
+            const cmds: string[] = []
+            
             if (sshShellOptions.zshPlugins) {
-              cmd = 'command -v zsh >/dev/null 2>&1 && { ZD=$HOME/.zsh; mkdir -p $ZD; touch ~/.zshrc; [ ! -d $ZD/zsh-autosuggestions ] && git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions $ZD/zsh-autosuggestions >/dev/null 2>&1; [ ! -d $ZD/zsh-syntax-highlighting ] && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting $ZD/zsh-syntax-highlighting >/dev/null 2>&1; grep -q zsh-autosuggestions ~/.zshrc 2>/dev/null || printf \'\\n# ActionShell Zsh Configuration\\nautoload -U compinit && compinit 2>/dev/null\\n[ -f "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"\\n[ -f "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"\\n\' >> ~/.zshrc; echo "___ACTIONSHELL_ZSH_READY___"; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; } || echo "___ACTIONSHELL_ZSH_READY___"'
-            } else {
-              cmd = 'command -v zsh >/dev/null 2>&1 && { touch ~/.zshrc; echo "___ACTIONSHELL_ZSH_READY___"; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; } || echo "___ACTIONSHELL_ZSH_READY___"'
+              cmds.push('[ -d ~/.zsh/zsh-autosuggestions ] || (mkdir -p ~/.zsh && git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions ~/.zsh/zsh-autosuggestions && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting ~/.zsh/zsh-syntax-highlighting) >/dev/null 2>&1')
+              cmds.push('touch ~/.zshrc')
+              cmds.push("grep -q zsh-autosuggestions ~/.zshrc 2>/dev/null || echo 'source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh' >> ~/.zshrc")
+              cmds.push("grep -q zsh-syntax-highlighting ~/.zshrc 2>/dev/null || echo 'source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> ~/.zshrc")
             }
+            cmds.push('exec zsh -l')
 
-            // Write startup command silently
-            stream.write(cmd + '\n')
+            const fullCmd = cmds.join('\n')
 
-            // Safety fallback timeout in case marker is missed
+            // Write startup commands silently into stream
+            stream.write(fullCmd + '\n')
+
+            // Un-mute terminal output after 600ms and clear screen cleanly
             setTimeout(() => {
-              if (silentStartup) {
-                silentStartup = false
-                if (session.status === 'connected') {
-                  sshEvents.emit('terminal:output', { sessionId, data: '\x1b[2J\x1b[3J\x1b[H' + startupBuffer })
-                  startupBuffer = ''
-                  stream.write('\n')
-                }
+              silentStartup = false
+              if (session.status === 'connected') {
+                // Clear xterm screen and request fresh prompt
+                sshEvents.emit('terminal:output', { sessionId, data: '\x1b[2J\x1b[3J\x1b[H' })
+                stream.write('\n')
               }
-            }, 4000)
+            }, 600)
           }
           
           // Audit log via server
