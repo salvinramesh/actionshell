@@ -151,7 +151,7 @@ jobs:
         run: pip install setuptools
 
       - name: Install standard node-gyp globally
-        run: npm install -g node-gyp@latest
+        run: npm install -g node-gyp@10
 
       - name: Rebuild node-pty for Electron (Windows)
         shell: pwsh
