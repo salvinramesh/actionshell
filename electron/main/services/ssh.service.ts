@@ -241,59 +241,29 @@ export async function spawnSSHSession(
           
           // After shell is ready, switch to zsh if enabled
           if (sshShellOptions?.useZsh) {
-            const pluginLines = sshShellOptions.zshPlugins
-              ? `
-# Auto-install zsh plugins if missing
-ZSH_PLUGINS_DIR="\${HOME}/.zsh"
-mkdir -p "\${ZSH_PLUGINS_DIR}"
-
-if [ ! -d "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions" ]; then
-  git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions" 2>/dev/null
-fi
-if [ ! -d "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting" ]; then
-  git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting" 2>/dev/null
-fi
-
-# Source plugins
-[ -f "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh"
-[ -f "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-`
-              : ''
-
-            // Build a startup command that:
-            // 1. Checks if zsh is installed
-            // 2. Writes a temporary .zshrc snippet to source plugins
-            // 3. Execs into zsh so it replaces the current shell
-            const zshStartup = [
-              `if command -v zsh >/dev/null 2>&1; then`,
-              `  export TERM=xterm-256color`,
-              `  export COLORTERM=truecolor`,
-              `  export LANG=\${LANG:-en_US.UTF-8}`,
-              `  export LC_ALL=\${LC_ALL:-en_US.UTF-8}`,
-            ]
+            let cmd: string
 
             if (sshShellOptions.zshPlugins) {
-              zshStartup.push(
-                `  ACTIONSHELL_ZSH_RC="${'${HOME}'}/.actionshell_zshrc"`,
-                `  cat > "\${ACTIONSHELL_ZSH_RC}" << 'ACTIONSHELL_EOF'`,
-                `# ActionShell Zsh Plugin Loader`,
-                `[ -f ~/.zshrc ] && source ~/.zshrc`,
-                pluginLines.trim(),
-                `ACTIONSHELL_EOF`,
-                `  exec zsh --rcs -i -c "source \\"\${ACTIONSHELL_ZSH_RC}\\"; exec zsh -i"`,
-              )
+              // Single-line command: install plugins if missing, add source lines to ~/.zshrc, clear screen, exec zsh
+              cmd = [
+                'command -v zsh >/dev/null 2>&1 && {',
+                'ZD=$HOME/.zsh; mkdir -p $ZD;',
+                '[ ! -d $ZD/zsh-autosuggestions ] && git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions $ZD/zsh-autosuggestions >/dev/null 2>&1;',
+                '[ ! -d $ZD/zsh-syntax-highlighting ] && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting $ZD/zsh-syntax-highlighting >/dev/null 2>&1;',
+                'grep -q zsh-autosuggestions ~/.zshrc 2>/dev/null || printf \'\\n# ActionShell Zsh Plugins\\n[ -f "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"\\n[ -f "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "$HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"\\n\' >> ~/.zshrc;',
+                'clear; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; }'
+              ].join(' ')
             } else {
-              zshStartup.push(`  exec zsh -l`)
+              // Simple: just exec zsh if available
+              cmd = 'command -v zsh >/dev/null 2>&1 && { clear; TERM=xterm-256color COLORTERM=truecolor exec zsh -l; }'
             }
 
-            zshStartup.push(`fi`)
-
-            // Send the command with a small delay to let the shell init
+            // Send with a small delay to let the shell init prompt render
             setTimeout(() => {
               if (session.stream && session.status === 'connected') {
-                stream.write(zshStartup.join('\n') + '\n')
+                stream.write(cmd + '\n')
               }
-            }, 300)
+            }, 500)
           }
           
           // Audit log via server

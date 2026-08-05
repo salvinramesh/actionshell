@@ -40,6 +40,12 @@ export function registerTerminalIPC(mainWindow: BrowserWindow) {
     }
   })
 
+  ptyEvents.on('terminal:error', ({ sessionId, error }) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('terminal:error', { sessionId, error })
+    }
+  })
+
   // SSH terminal
   ipcMain.handle('terminal:ssh:spawn', async (_, { sessionId, hostId, cols, rows, actorId, sshShellOptions }): Promise<IpcResponse> => {
     try {
