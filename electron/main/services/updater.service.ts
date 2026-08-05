@@ -1,4 +1,5 @@
-import { app, shell } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import https from 'https'
 
 export interface UpdateCheckResult {
@@ -8,6 +9,45 @@ export interface UpdateCheckResult {
   releaseUrl: string
   releaseNotes: string
   publishedAt?: string
+}
+
+// Configure auto-updater
+autoUpdater.autoDownload = true
+autoUpdater.autoInstallOnAppQuit = true
+
+export function initAutoUpdater(mainWindow: BrowserWindow | null) {
+  if (!app.isPackaged) return
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('app:update-status', {
+      status: 'available',
+      version: info.version,
+      releaseNotes: info.releaseNotes
+    })
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('app:update-status', {
+      status: 'downloading',
+      percent: Math.round(progress.percent)
+    })
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    mainWindow?.webContents.send('app:update-status', {
+      status: 'downloaded',
+      version: info.version
+    })
+  })
+
+  // Silent check on app start
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {})
+  }, 3000)
+}
+
+export function restartAndInstall() {
+  autoUpdater.quitAndInstall(false, true)
 }
 
 export function checkForUpdates(): Promise<UpdateCheckResult> {

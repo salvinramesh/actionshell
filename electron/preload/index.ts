@@ -158,6 +158,12 @@ const api = {
     getPath: (name: string) => ipcRenderer.invoke('app:get-path', name),
     checkUpdate: () => ipcRenderer.invoke('app:check-update'),
     openRelease: (url: string) => ipcRenderer.invoke('app:open-url', url),
+    installUpdate: () => ipcRenderer.invoke('app:install-update'),
+    onUpdateStatus: (callback: (data: any) => void) => {
+      const listener = (_: any, data: any) => callback(data)
+      ipcRenderer.on('app:update-status', listener)
+      return () => ipcRenderer.removeListener('app:update-status', listener)
+    }
   },
   
   // Theme

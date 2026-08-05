@@ -95,14 +95,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('app:get-path', (_, name) => app.getPath(name as any))
   
   // Auto-updater IPC
-  ipcMain.handle('app:check-update', async () => {
-    const { checkForUpdates } = await import('./services/updater.service')
-    return checkForUpdates()
-  })
-  ipcMain.handle('app:open-url', async (_, url: string) => {
-    const { openReleaseUrl } = await import('./services/updater.service')
-    openReleaseUrl(url)
-  })
+  const { initAutoUpdater, checkForUpdates, openReleaseUrl, restartAndInstall } = await import('./services/updater.service')
+  initAutoUpdater(mainWindow)
+
+  ipcMain.handle('app:check-update', async () => checkForUpdates())
+  ipcMain.handle('app:open-url', async (_, url: string) => openReleaseUrl(url))
+  ipcMain.handle('app:install-update', () => restartAndInstall())
 
   // Theme
   ipcMain.handle('theme:get', () => nativeTheme.shouldUseDarkColors ? 'dark' : 'light')

@@ -9,7 +9,7 @@ import logo from '../../logo.png'
 export default function TitleBar() {
   const { session, setLocked } = useAuthStore()
   const { theme, setTheme, setView, currentView } = useUIStore()
-  const [updateInfo, setUpdateInfo] = useState<{ hasUpdate: boolean; latestVersion: string; releaseUrl: string } | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<{ hasUpdate: boolean; latestVersion: string; releaseUrl: string; status?: string; percent?: number } | null>(null)
   const isAdmin = session?.role === 'super_admin' || session?.role === 'admin'
 
   useEffect(() => {
@@ -18,7 +18,38 @@ export default function TitleBar() {
         setUpdateInfo(res)
       }
     }).catch(() => {})
+
+    const cleanup = window.actionshell.app.onUpdateStatus((data: any) => {
+      if (data.status === 'downloading') {
+        setUpdateInfo(prev => ({
+          hasUpdate: true,
+          latestVersion: prev?.latestVersion || '',
+          releaseUrl: prev?.releaseUrl || '',
+          status: 'downloading',
+          percent: data.percent
+        }))
+      } else if (data.status === 'downloaded') {
+        setUpdateInfo(prev => ({
+          hasUpdate: true,
+          latestVersion: data.version || prev?.latestVersion || '',
+          releaseUrl: prev?.releaseUrl || '',
+          status: 'downloaded'
+        }))
+      }
+    })
+
+    return () => {
+      if (typeof cleanup === 'function') cleanup()
+    }
   }, [])
+
+  const handlePillClick = () => {
+    if (updateInfo?.status === 'downloaded') {
+      window.actionshell.app.installUpdate()
+    } else if (updateInfo?.releaseUrl) {
+      window.actionshell.app.openRelease(updateInfo.releaseUrl)
+    }
+  }
 
   return (
     <div className="titlebar titlebar">
@@ -43,11 +74,17 @@ export default function TitleBar() {
           <button
             className="titlebar-update-pill animate-fadeIn"
             style={{ WebkitAppRegion: 'no-drag' } as any}
-            onClick={() => window.actionshell.app.openRelease(updateInfo.releaseUrl)}
-            title={`ActionShell v${updateInfo.latestVersion} is available! Click to download.`}
+            onClick={handlePillClick}
+            title={updateInfo.status === 'downloaded' ? 'Click to restart and install update now' : `ActionShell v${updateInfo.latestVersion} available`}
           >
             <ArrowUpCircle size={12} style={{ color: 'var(--color-accent-400)' }} />
-            <span>v{updateInfo.latestVersion} Available</span>
+            <span>
+              {updateInfo.status === 'downloaded'
+                ? `Restart & Install v${updateInfo.latestVersion}`
+                : updateInfo.status === 'downloading'
+                ? `Downloading (${updateInfo.percent || 0}%)`
+                : `v${updateInfo.latestVersion} Available`}
+            </span>
           </button>
         )}
       </div>
