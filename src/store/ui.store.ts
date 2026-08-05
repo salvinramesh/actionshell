@@ -19,6 +19,8 @@ interface UIStore {
   logHighlightActive: boolean
   defaultShell: string
   customShellPath: string
+  sshUseZsh: boolean
+  sshZshPlugins: boolean
 
   setTheme: (t: Theme) => void
   setView: (v: View) => void
@@ -35,6 +37,8 @@ interface UIStore {
   setLogHighlightActive: (v: boolean) => void
   setDefaultShell: (s: string) => void
   setCustomShellPath: (p: string) => void
+  setSshUseZsh: (v: boolean) => void
+  setSshZshPlugins: (v: boolean) => void
 }
 
 export interface Notification {
@@ -61,6 +65,8 @@ export const useUIStore = create<UIStore>((set) => ({
   logHighlightActive: localStorage.getItem('actionshell_log_highlight_active') !== 'false',
   defaultShell: localStorage.getItem('actionshell_default_shell') || 'zsh',
   customShellPath: localStorage.getItem('actionshell_custom_shell_path') || '',
+  sshUseZsh: localStorage.getItem('actionshell_ssh_use_zsh') !== 'false',
+  sshZshPlugins: localStorage.getItem('actionshell_ssh_zsh_plugins') !== 'false',
 
   setTheme: (theme) => {
     set({ theme })
@@ -126,5 +132,13 @@ export const useUIStore = create<UIStore>((set) => ({
   setCustomShellPath: (customShellPath) => {
     set({ customShellPath })
     localStorage.setItem('actionshell_custom_shell_path', customShellPath)
+  },
+  setSshUseZsh: (sshUseZsh) => {
+    set({ sshUseZsh })
+    localStorage.setItem('actionshell_ssh_use_zsh', String(sshUseZsh))
+  },
+  setSshZshPlugins: (sshZshPlugins) => {
+    set({ sshZshPlugins })
+    localStorage.setItem('actionshell_ssh_zsh_plugins', String(sshZshPlugins))
   },
 }))

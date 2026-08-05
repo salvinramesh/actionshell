@@ -95,7 +95,7 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
 
   const spawnedSessions = useRef<Set<string>>(new Set())
 
-  const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive, defaultShell, customShellPath } = useUIStore()
+  const { termTheme, termFontSize, termFontFamily, termFontColor, termBgColor, logHighlightActive, defaultShell, customShellPath, sshUseZsh, sshZshPlugins } = useUIStore()
 
   useEffect(() => {
     if (tab.status === 'connecting' || tab.status === 'connected') {
@@ -287,7 +287,7 @@ export default function TerminalPane({ tab, active, isVisible }: Props) {
           .then(res => updateTab(tab.id, { status: res.success ? 'connected' : 'error' }))
       } else if (tab.hostId) {
         xterm.write(`\r\n\x1b[90mConnecting to ${tab.hostname}...\x1b[0m\r\n`)
-        window.actionshell.terminal.spawnSSH(sessionId, tab.hostId, cols, rows, '')
+        window.actionshell.terminal.spawnSSH(sessionId, tab.hostId, cols, rows, '', { useZsh: sshUseZsh, zshPlugins: sshZshPlugins })
           .then(res => updateTab(tab.id, { status: res.success ? 'connected' : 'error' }))
           .catch(err => {
             xterm.write(`\r\n\x1b[31mConnection failed: ${err.message}\x1b[0m\r\n`)

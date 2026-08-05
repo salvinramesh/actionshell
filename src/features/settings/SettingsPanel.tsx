@@ -14,7 +14,9 @@ export default function SettingsPanel() {
     termBgColor, setTermBgColor,
     logHighlightActive, setLogHighlightActive,
     defaultShell, setDefaultShell,
-    customShellPath, setCustomShellPath
+    customShellPath, setCustomShellPath,
+    sshUseZsh, setSshUseZsh,
+    sshZshPlugins, setSshZshPlugins
   } = useUIStore()
   const { session, logout } = useAuthStore()
 
@@ -240,6 +242,41 @@ export default function SettingsPanel() {
                   Enable Live Log Triggers & Highlighting (ERROR, SUCCESS, IP addresses)
                 </label>
               </div>
+
+              {/* SSH Remote Shell Settings */}
+              <div style={{borderTop:'1px solid var(--color-border-subtle)',paddingTop:'20px',marginTop:'4px'}}>
+                <h3 style={{fontSize:'var(--text-md)',fontWeight:'var(--weight-semibold)',color:'var(--color-text-200)',marginBottom:'14px',display:'flex',alignItems:'center',gap:'8px'}}>
+                  <Terminal size={16} style={{color:'var(--color-accent-500)'}}/> SSH Remote Shell
+                </h3>
+                <div style={{display:'flex',flexDirection:'column',gap:'14px'}}>
+                  <div className="form-group">
+                    <label style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',fontSize:'var(--text-sm)',color:'var(--color-text-400)'}}>
+                      <input type="checkbox" checked={sshUseZsh} onChange={e=>setSshUseZsh(e.target.checked)} style={{width:'16px',height:'16px'}}/>
+                      Auto-switch to Zsh on remote servers (if zsh is installed)
+                    </label>
+                  </div>
+                  {sshUseZsh && (
+                    <div className="form-group" style={{paddingLeft:'26px'}}>
+                      <label style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',fontSize:'var(--text-sm)',color:'var(--color-text-400)'}}>
+                        <input type="checkbox" checked={sshZshPlugins} onChange={e=>setSshZshPlugins(e.target.checked)} style={{width:'16px',height:'16px'}}/>
+                        Auto-install & source Zsh plugins
+                      </label>
+                      <div style={{paddingLeft:'26px',marginTop:'8px',display:'flex',flexDirection:'column',gap:'4px'}}>
+                        <span style={{fontSize:'12px',color:'var(--color-text-500)',fontFamily:'var(--font-mono)'}}>
+                          • zsh-autosuggestions <span style={{color:'var(--color-accent-400)'}}>(fish-like suggestions)</span>
+                        </span>
+                        <span style={{fontSize:'12px',color:'var(--color-text-500)',fontFamily:'var(--font-mono)'}}>
+                          • zsh-syntax-highlighting <span style={{color:'var(--color-accent-400)'}}>(command coloring)</span>
+                        </span>
+                      </div>
+                      <div style={{marginTop:'8px',padding:'8px 12px',background:'var(--color-base-800)',borderRadius:'var(--radius-md)',fontSize:'11px',color:'var(--color-text-500)',lineHeight:1.4}}>
+                        Plugins are cloned to <code style={{color:'var(--color-accent-400)'}}>~/.zsh/</code> on each remote server on first connect. Subsequent sessions reuse the installed plugins.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div style={{background:termBgColor,border:'1px solid var(--color-border-subtle)',borderRadius:'var(--radius-lg)',padding:'16px',fontFamily:termFontFamily,fontSize:`${termFontSize}px`,color:termFontColor}}>
                 <span style={{color:'#A6E3A1'}}>user@server</span><span style={{color:termFontColor}}>:</span><span style={{color:'#89B4FA'}}>~/projects</span><span style={{color:'#00D4FF'}}> $ </span><span>ls -la</span>
               </div>

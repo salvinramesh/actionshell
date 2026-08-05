@@ -71,8 +71,8 @@ const api = {
   
   // Terminal
   terminal: {
-    spawnSSH: (sessionId: string, hostId: string, cols: number, rows: number, actorId: string) =>
-      ipcRenderer.invoke('terminal:ssh:spawn', { sessionId, hostId, cols, rows, actorId }),
+    spawnSSH: (sessionId: string, hostId: string, cols: number, rows: number, actorId: string, sshShellOptions?: { useZsh?: boolean; zshPlugins?: boolean }) =>
+      ipcRenderer.invoke('terminal:ssh:spawn', { sessionId, hostId, cols, rows, actorId, sshShellOptions }),
     spawnLocal: (sessionId: string, shell?: string, cols?: number, rows?: number) =>
       ipcRenderer.invoke('terminal:local:spawn', { sessionId, shell, cols, rows }),
     input: (sessionId: string, data: string, isLocal: boolean) =>

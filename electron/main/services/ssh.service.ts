@@ -177,7 +177,8 @@ export async function spawnSSHSession(
   hostId: string,
   cols: number,
   rows: number,
-  actorId: string
+  actorId: string,
+  sshShellOptions?: { useZsh?: boolean; zshPlugins?: boolean }
 ): Promise<void> {
   return new Promise(async (resolve, reject) => {
     try {
@@ -237,6 +238,63 @@ export async function spawnSSHSession(
               recordings.delete(sessionId)
             }
           })
+          
+          // After shell is ready, switch to zsh if enabled
+          if (sshShellOptions?.useZsh) {
+            const pluginLines = sshShellOptions.zshPlugins
+              ? `
+# Auto-install zsh plugins if missing
+ZSH_PLUGINS_DIR="\${HOME}/.zsh"
+mkdir -p "\${ZSH_PLUGINS_DIR}"
+
+if [ ! -d "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions" ]; then
+  git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions" 2>/dev/null
+fi
+if [ ! -d "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting" ]; then
+  git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting" 2>/dev/null
+fi
+
+# Source plugins
+[ -f "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "\${ZSH_PLUGINS_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh"
+[ -f "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "\${ZSH_PLUGINS_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+`
+              : ''
+
+            // Build a startup command that:
+            // 1. Checks if zsh is installed
+            // 2. Writes a temporary .zshrc snippet to source plugins
+            // 3. Execs into zsh so it replaces the current shell
+            const zshStartup = [
+              `if command -v zsh >/dev/null 2>&1; then`,
+              `  export TERM=xterm-256color`,
+              `  export COLORTERM=truecolor`,
+              `  export LANG=\${LANG:-en_US.UTF-8}`,
+              `  export LC_ALL=\${LC_ALL:-en_US.UTF-8}`,
+            ]
+
+            if (sshShellOptions.zshPlugins) {
+              zshStartup.push(
+                `  ACTIONSHELL_ZSH_RC="${'${HOME}'}/.actionshell_zshrc"`,
+                `  cat > "\${ACTIONSHELL_ZSH_RC}" << 'ACTIONSHELL_EOF'`,
+                `# ActionShell Zsh Plugin Loader`,
+                `[ -f ~/.zshrc ] && source ~/.zshrc`,
+                pluginLines.trim(),
+                `ACTIONSHELL_EOF`,
+                `  exec zsh --rcs -i -c "source \\"\${ACTIONSHELL_ZSH_RC}\\"; exec zsh -i"`,
+              )
+            } else {
+              zshStartup.push(`  exec zsh -l`)
+            }
+
+            zshStartup.push(`fi`)
+
+            // Send the command with a small delay to let the shell init
+            setTimeout(() => {
+              if (session.stream && session.status === 'connected') {
+                stream.write(zshStartup.join('\n') + '\n')
+              }
+            }, 300)
+          }
           
           // Audit log via server
           api.post('/audit-action', {

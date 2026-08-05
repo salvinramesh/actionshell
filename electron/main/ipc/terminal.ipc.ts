@@ -41,9 +41,9 @@ export function registerTerminalIPC(mainWindow: BrowserWindow) {
   })
 
   // SSH terminal
-  ipcMain.handle('terminal:ssh:spawn', async (_, { sessionId, hostId, cols, rows, actorId }): Promise<IpcResponse> => {
+  ipcMain.handle('terminal:ssh:spawn', async (_, { sessionId, hostId, cols, rows, actorId, sshShellOptions }): Promise<IpcResponse> => {
     try {
-      await spawnSSHSession(sessionId, hostId, cols, rows, actorId)
+      await spawnSSHSession(sessionId, hostId, cols, rows, actorId, sshShellOptions)
       return { success: true }
     } catch (err: unknown) {
       return { success: false, error: (err as Error).message }
