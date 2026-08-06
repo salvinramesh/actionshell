@@ -74,7 +74,7 @@ jobs:
         run: npx electron-vite build
 
       - name: Package Linux installers
-        run: npx electron-builder --linux deb AppImage --x64 --publish never
+        run: npx electron-builder --linux deb AppImage rpm --x64 --publish never
 
       - name: Upload Linux builds directly to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -83,6 +83,7 @@ jobs:
           files: |
             dist/*.deb
             dist/*.AppImage
+            dist/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -71,6 +71,12 @@
         "arch": [
           "x64"
         ]
+      },
+      {
+        "target": "rpm",
+        "arch": [
+          "x64"
+        ]
       }
     ],
     "icon": "resources/icons",
@@ -91,6 +97,18 @@
       "libuuid1"
     ],
     "packageCategory": "net"
+  },
+  "rpm": {
+    "depends": [
+      "libsecret",
+      "gtk3",
+      "libnotify",
+      "nss",
+      "libXtst",
+      "xdg-utils",
+      "at-spi2-core"
+    ],
+    "category": "Applications/Internet"
   },
   "appImage": {
     "artifactName": "ActionShell-${version}-${arch}.${ext}"
